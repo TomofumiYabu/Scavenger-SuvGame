@@ -1,4 +1,9 @@
 import { defineConfig } from "@playwright/test";
+import { existsSync } from "node:fs";
+
+// Cloud ships Chromium; GitHub Actions installs Playwright's managed browser.
+const chromiumPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ||
+  (existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined);
 
 export default defineConfig({
   testDir: "./tests",
@@ -10,7 +15,7 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:4173",
     browserName: "chromium",
     headless: true,
-    launchOptions: { executablePath: "/usr/bin/chromium" },
+    launchOptions: { executablePath: chromiumPath },
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },

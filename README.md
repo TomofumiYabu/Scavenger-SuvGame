@@ -30,7 +30,11 @@ npm run check
 npm run build
 ```
 
-生成される `dist/` の**中身すべて**（`index.html`、`assets/`、`favicon.svg`）を任意の静的ホスティングへ配置します。サブディレクトリ配信に対応し、URL 書き換えは不要です。HTTP/HTTPS 配信を前提とし、`file://` で直接開く使い方は対象外です。公開先とアップロード方法は未確定で、デプロイはまだ行っていません。
+公開先は GitHub Pages。予定URLは `https://tomofumiyabu.github.io/Scavenger-SuvGame/` です。公開状況は [進捗](docs/PROGRESS.md) に記録します。
+
+`main` にプッシュすると GitHub Actions が依存導入、ユニットテスト、型チェック、ビルド、ブラウザテストを行い、成功した `dist/` を公開します。Pull Request では検証だけを実行します。初回の Pages 有効化と、公開の確認方法は [公開手順](docs/DEPLOYMENT.md) を参照してください。
+
+生成される `dist/` の**中身すべて**（`index.html`、`assets/`、`favicon.svg`）が配信対象です。サブディレクトリ配信に対応し、URL 書き換えは不要です。HTTP/HTTPS 配信を前提とし、`file://` で直接開く使い方は対象外です。
 
 公開後のプレイに外部 API/CDN への通信はありません。セーブは配信元とブラウザに依存し、ブラウザのデータ削除や配信元の変更で失われます。
 
@@ -40,4 +44,5 @@ npm run build
 - [ゲーム仕様](docs/SPEC.md)
 - [技術構成・設計](docs/ARCHITECTURE.md)
 - [Cloud のセットアップ・検証手順](docs/DEVELOPMENT.md)
+- [GitHub Pages 公開手順](docs/DEPLOYMENT.md)
 - [進捗・残課題](docs/PROGRESS.md)

@@ -36,6 +36,8 @@ dist/                  配布成果物（Git 対象外）
 
 ## 配信
 
-`npm run build` で `dist/` を生成。`base: './'` により GitHub Pages のリポジトリ配下などのサブパスでもアセットを読み込める。クライアントルーターは使わず、サーバーの URL 書き換え設定は不要。公開先は未指定のため、配信可能な成果物の生成までを今回の範囲とする。
+`npm run build` で `dist/` を生成。`base: './'` により GitHub Pages のリポジトリ配下などのサブパスでもアセットを読み込める。クライアントルーターは使わず、サーバーの URL 書き換え設定は不要。
 
-実行時は外部通信・API キー・DB が不要。開発時に npm レジストリが必要。Cloud の `/usr/bin/chromium` をブラウザテストに利用する。ホスティングへのアップロードや環境の公開はこの実装作業では実行しない。
+実行時は外部通信・API キー・DB が不要。開発時に npm レジストリが必要。Cloud の `/usr/bin/chromium` をブラウザテストに利用する。GitHub Actions では Playwright 管理の Chromium をインストールして同じテストを実行する。
+
+公開先は GitHub Pages。`.github/workflows/pages.yml` の build ジョブが検証済み成果物をアップロードし、依存する deploy ジョブが公開する。PR では検証のみ、`main` への push と手動実行では公開まで行う。Actions は公式リポジトリのコミット SHA で固定する。公開ジョブにのみ `pages: write` と `id-token: write` を付与する。初回の Pages 有効化はリポジトリ設定で行う必要があり、通常の `GITHUB_TOKEN` での自動有効化は前提にしない。

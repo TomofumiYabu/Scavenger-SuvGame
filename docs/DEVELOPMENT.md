@@ -5,10 +5,10 @@
 ## 必要なツール
 
 - Node.js 24.19.0 / npm 11.9.0（`.node-version` に記録）
-- Chromium: `/usr/bin/chromium`（この Cloud の標準ツール）
+- Chromium: `/usr/bin/chromium`（この Cloud の標準ツール）。存在しない CI 環境では Playwright 管理の Chromium を使用する。必要に応じて `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` で実行ファイルを指定できる。
 - Python 3: 静的配信のテスト専用
 - 外部サービス・API キー・DB: 不要
-- 導入時の通信先: `registry.npmjs.org`
+- 導入時の通信先: `registry.npmjs.org`。GitHub の設定・Actions 確認には `api.github.com`、公開確認には `tomofumiyabu.github.io` を使う。
 
 ## 環境の再構築
 
@@ -52,4 +52,4 @@ E2E は4173番の Vite preview と4174番の通常の静的 HTTP サーバーを
 
 Cloud の設定ドラフトはインストール手順と起動手順を保存するだけで、公開は行わない。公開後に復元されるファイルと、再起動が必要なプロセスを区別する。新しい Cloud タスクでの復元は、実際に別タスクで確認するまでは未検証と記録する。
 
-静的サイトのデプロイ先は未決定。現在は成果物の生成と配信互換性の検証まで。Git push、GitHub Pages 等へのデプロイは、明示された依頼に応じて実施する。
+ユーザーは検証が通った機能単位・作業の区切りでのコミットとプッシュを継続的に許可している。毎回の確認は不要。公開先は GitHub Pages で、`main` の変更は GitHub Actions による検証後に公開する。具体的な手順と復旧方法は `docs/DEPLOYMENT.md` を参照する。
