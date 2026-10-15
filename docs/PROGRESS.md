@@ -55,7 +55,11 @@ Codex Cloud 内で開発と検証が完結し、静的配信できるサバイ�
 - 変更後に `npm run check` が成功（47件のユニットテスト、型検査、ビルド、9件のE2E）。`actionlint 1.7.7` によるワークフロー検証も成功。
 - Cloud から `api.github.com` への接続はプロキシの CONNECT 403 で拒否された。Git の読み取り・プッシュは成功しており、GitHub 認証全体の不足とは判断していない。
 - `api.github.com` と公開確認先 `tomofumiyabu.github.io` を Cloud の許可先ドラフトへ追加済み。既存の許可先とプリセットは保持した。ネットワーク反映後に Pages 設定・Actions の結果・公開サイトの実操作を確認する。
-- 現時点で Pages の設定・公開成功は未確認。公開予定URLは `https://tomofumiyabu.github.io/Scavenger-SuvGame/`。初回設定・復旧手順は `docs/DEPLOYMENT.md` に記録。
+- 公開用構成をコミット `47e5e6e` として `main` へプッシュ済み。
+- [GitHub Actions 初回実行](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38818951859) の **Test and build は成功**（47秒）。**Deploy to GitHub Pages は失敗**（4秒）。`Configure GitHub Pages` が `Get Pages site failed / 404 Not Found` を報告し、Pages の有効化と GitHub Actions ソースの設定を要求している。
+- 必要な外部作業は Pages の初回有効化。API のネットワーク許可を反映して Codex から設定するか、[Settings → Pages](https://github.com/TomofumiYabu/Scavenger-SuvGame/settings/pages) の Source を **GitHub Actions** に設定し、上記の実行を再実行する。アプリケーションの修正は不要。
+- 公開成功と公開サイトの実操作は未確認。公開予定URLは `https://tomofumiyabu.github.io/Scavenger-SuvGame/`。初回設定・復旧手順は `docs/DEPLOYMENT.md` に記録。
+- この実行結果の追記は文書だけの変更のため `[skip ci]` で保存し、未有効の Pages に対する同じ失敗の再実行は避けた。アプリ・公開構成は上記の検証済みコミットから変更していない。
 
 ## 保留事項
 
