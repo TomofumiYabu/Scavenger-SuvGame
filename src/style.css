@@ -1617,3 +1617,18 @@ dialog > form .button {
 .event-choices { margin-top: 20px; }
 .event-choice > p { margin-bottom: 12px; }
 .recovery .button { margin-top: 14px; }
+
+/* Navigation moves focus deliberately; ordinary updates retain their DOM controls. */
+#game { overflow-anchor: none; }
+#outcome-title:focus, #ending-title:focus, .action-details:focus,
+.location-actions:focus, .item h3:focus, #inventory-title:focus {
+  outline: 2px dashed #d9e5b4;
+  outline-offset: 5px;
+}
+.outcome-changes { margin: 20px 0; padding: 16px; background: #20271f; line-height: 1.9; font-size: 13px; }
+.outcome-changes h3 { font-size: 14px; margin-bottom: 8px; }
+.outcome-changes ul { padding-left: 20px; margin: 8px 0; }
+.outcome-changes .muted { margin-top: 10px; color: var(--muted); font-size: 11px; }
+.outcome-panel { overflow-wrap: anywhere; }
+.outcome-panel > .button { margin-top: 16px; }
+.outcome-ended { font-weight: 600; color: #e4b293; }

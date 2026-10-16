@@ -298,8 +298,8 @@ for (const width of [320, 390]) test(`備蓄庫の選択と再読込・キーボ
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: `test-results/event-${width}.png`, fullPage: true });
   await safe.focus(); await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { name: "探索の記録" })).toBeFocused();
-  await expect(page.getByText("入口の箱から飲料水 ×1、保存食 ×1を回収した。", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "選択の結果" })).toBeFocused();
+  await expect(page.locator(".outcome-panel").getByText("入口の箱から飲料水 ×1、保存食 ×1を回収した。", { exact: true })).toBeVisible();
   await expect(page.getByTestId("remaining")).toHaveText("46");
   await expect(page.getByTestId("item-water")).toHaveText("×3");
   await page.reload(); await expect(title).toHaveCount(0);
@@ -420,7 +420,7 @@ test.describe("診療所・避難所の選択", () => {
         expect(boxes).toBe(true);
         await page.screenshot({ path: `test-results/${event}-${width}.png`, fullPage: true });
         if (width === 320) await button.tap(); else { await button.focus(); await page.keyboard.press("Enter"); }
-        await expect(page.getByRole("heading", { name: "探索の記録" })).toBeFocused();
+        await expect(page.getByRole("heading", { name: "選択の結果" })).toBeFocused();
         await expect(title).toHaveCount(0);
         await expect(page.getByTestId("remaining")).toHaveText("46");
         if (choice === "包帯をまとめて持ち出す") {
