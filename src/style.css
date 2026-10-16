@@ -1573,3 +1573,27 @@ dialog > form .button {
     scroll-behavior: auto !important;
   }
 }
+
+.action-details {
+  margin: 7px 0 14px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.action-details .action-cost {
+  font-size: inherit;
+  text-align: left;
+  margin: 0;
+}
+.action-effect { color: #b9c6a1; }
+.action-reason, .action-risk { color: #e4b293; margin-top: 4px; }
+.item { flex-wrap: wrap; }
+.item > .action-details { flex-basis: 100%; margin: 0; font-size: 11px; }
+@media (max-width: 680px) {
+  .location-panel { grid-template-columns: 70px minmax(0, 1fr); }
+  .location-art { margin-left: 4px; }
+  .location-copy { padding-left: 8px; }
+  .inventory-grid { grid-template-columns: 1fr; }
+  .item > .action-details { font-size: 11px; }
+}

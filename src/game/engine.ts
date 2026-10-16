@@ -1,15 +1,14 @@
+import { actionTerms, assessAction, cap, RUINS_DAMAGE, STARVATION_DAMAGE } from "./actions";
 import {
   ITEM_NAMES,
   MAX_TURNS,
   START,
   TERRAIN,
-  TOWER,
   neighbors,
   tileAt,
 } from "./model";
 import type { Action, GameState, Item, LogKind, Terrain } from "./model";
 
-const cap = (value: number) => Math.min(100, Math.max(0, value));
 function note(state: GameState, text: string, kind: LogKind = "info"): void {
   state.log = [{ turn: state.turn, text, kind }, ...state.log].slice(0, 12);
 }
@@ -47,34 +46,22 @@ const loot: Record<Terrain, Partial<Record<Item, number>>> = {
 };
 
 export function canAct(state: GameState, action: Action): boolean {
-  if (state.status !== "active") return false;
-  switch (action.type) {
-    case "move":
-      return (
-        neighbors(state.position).includes(action.target) && state.energy >= 6
-      );
-    case "search":
-      return !state.searched.includes(state.position) && state.energy >= 10;
-    case "rest":
-      return true;
-    case "use":
-      return action.item !== "scrap" && state.inventory[action.item] > 0;
-    case "signal":
-      return state.position === TOWER && state.inventory.scrap >= 3;
-  }
+  return assessAction(state, action).allowed;
 }
 
 /** Pure transition: rejected actions return the original state without spending a turn. */
 export function act(previous: GameState, action: Action): GameState {
   if (!canAct(previous, action)) return previous;
   const state = structuredClone(previous);
-  state.turn += 1;
-  let hungerCost = 3;
-  let thirstCost = 4;
+  const terms = actionTerms(previous, action);
+  state.turn += terms.hours;
+  for (const key of ["health", "hunger", "thirst", "energy"] as const) {
+    state[key] = cap(state[key] + (terms.recovery[key] ?? 0));
+  }
+  for (const [item, count] of Object.entries(terms.supplies) as [Item, number][]) state.inventory[item] -= count;
   switch (action.type) {
     case "move": {
       state.position = action.target;
-      state.energy -= 6;
       state.discovered = [
         ...new Set([
           ...state.discovered,
@@ -86,9 +73,6 @@ export function act(previous: GameState, action: Action): GameState {
       break;
     }
     case "search": {
-      state.energy -= 10;
-      hungerCost = 5;
-      thirstCost = 6;
       state.searched.push(state.position);
       const terrain = tileAt(state.position).terrain;
       const found = loot[terrain];
@@ -101,17 +85,13 @@ export function act(previous: GameState, action: Action): GameState {
       note(state, `${descriptions.join("、")}を見つけた。`, "good");
       state.rng = (Math.imul(state.rng, 1664525) + 1013904223) >>> 0;
       if (terrain === "ruins" && state.rng % 3 === 0) {
-        state.health = cap(state.health - 10);
+        state.health = cap(state.health - RUINS_DAMAGE);
         note(state, "崩れた足場で負傷した。体力 −10。", "danger");
       }
       break;
     }
     case "rest": {
-      state.energy = cap(state.energy + 35);
-      hungerCost = 6;
-      thirstCost = 8;
       const sheltered = tileAt(state.position).terrain === "shelter";
-      if (sheltered) state.health = cap(state.health + 8);
       note(
         state,
         sheltered
@@ -122,17 +102,10 @@ export function act(previous: GameState, action: Action): GameState {
       break;
     }
     case "use": {
-      state.inventory[action.item] -= 1;
-      hungerCost = 1;
-      thirstCost = 2;
-      if (action.item === "food") state.hunger = cap(state.hunger + 35);
-      if (action.item === "water") state.thirst = cap(state.thirst + 40);
-      if (action.item === "bandage") state.health = cap(state.health + 30);
       note(state, `${ITEM_NAMES[action.item]}を使った。`, "good");
       break;
     }
     case "signal": {
-      state.inventory.scrap -= 3;
       note(
         state,
         "送信機が息を吹き返した。遠くから、確かに応答が聞こえる。",
@@ -141,14 +114,13 @@ export function act(previous: GameState, action: Action): GameState {
       break;
     }
   }
-  state.hunger = cap(state.hunger - hungerCost);
-  state.thirst = cap(state.thirst - thirstCost);
+  for (const key of ["health", "hunger", "thirst", "energy"] as const) state[key] = cap(state[key] - (terms.costs[key] ?? 0));
   if (state.hunger === 0) {
-    state.health = cap(state.health - 12);
+    state.health = cap(state.health - STARVATION_DAMAGE);
     note(state, "空腹で力が入らない。体力 −12。", "danger");
   }
   if (state.thirst === 0) {
-    state.health = cap(state.health - 12);
+    state.health = cap(state.health - STARVATION_DAMAGE);
     note(state, "ひどい渇きが体を蝕む。体力 −12。", "danger");
   }
   if (state.health === 0) {

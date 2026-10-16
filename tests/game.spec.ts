@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { newGame } from "../src/game/engine";
 import type { Page } from "@playwright/test";
 
 async function move(page: Page, coordinate: string): Promise<void> {
@@ -207,4 +208,75 @@ for (const width of [320, 390]) test(`六角形の辺と行オフセットが一
   await page.getByRole("button", { name: /^C5 / }).focus();
   expect(await page.locator('[data-tile="30"] .hex-outline').evaluate(element => getComputedStyle(element).strokeDasharray)).not.toBe("none");
   await page.screenshot({ path: `test-results/hex-${width}.png`, fullPage: true });
+});
+
+
+test("行動の理由と回復・消費を示し、キーボード使用後も更新する", async ({ page }) => {
+  const saved = newGame();
+  saved.energy = 5;
+  saved.thirst = 90;
+  saved.inventory.bandage = 0;
+  await page.addInitScript(saved => localStorage.setItem("afterlight.save.v1", JSON.stringify(saved)), saved);
+  await page.goto("/");
+  const search = page.getByRole("button", { name: "周囲を探索する" });
+  await expect(search).toBeDisabled();
+  await expect(search).toHaveAccessibleDescription(/必要 10/);
+  await expect(page.locator("#guide-search .action-reason")).toBeVisible();
+  const bandage = page.getByRole("button", { name: "包帯を使う" });
+  await expect(bandage).toBeDisabled();
+  await expect(bandage).toHaveAccessibleDescription(/所持 0個/);
+  await expect(page.locator("#guide-use-bandage .action-reason")).toBeVisible();
+  const water = page.getByRole("button", { name: "飲料水を使う" });
+  await expect(water).toHaveAccessibleDescription(/1時間.*水分 −2.*実回復 \+10/);
+  await expect(page.locator("#guide-rest")).toContainText("体力 +8");
+  await water.focus();
+  await page.keyboard.press("Enter");
+  await expect(water).toBeFocused();
+  await expect(page.getByTestId("thirst")).toContainText("98");
+  await expect(page.getByTestId("hunger")).toContainText("79");
+  await expect(page.getByTestId("item-water")).toHaveText("×1");
+  await expect(water).toHaveAccessibleDescription(/実回復 \+2/);
+  await page.getByRole("button", { name: /^C5 / }).click();
+  const moveButton = page.getByRole("button", { name: "ここへ移動" });
+  await expect(moveButton).toBeDisabled();
+  await expect(moveButton).toHaveAccessibleDescription(/必要 6/);
+});
+
+test("最後の送信に消費と危険を示し、死亡後は終了理由を表示する", async ({ page }) => {
+  const saved = newGame();
+  saved.position = 6; saved.turn = 47; saved.health = 12; saved.hunger = 3;
+  saved.inventory.scrap = 3;
+  saved.discovered.push(6);
+  await page.addInitScript(saved => localStorage.setItem("afterlight.save.v1", JSON.stringify(saved)), saved);
+  await page.goto("/");
+  const signal = page.getByRole("button", { name: "救難信号を送る" });
+  await expect(signal).toHaveAccessibleDescription(/スクラップ 3個.*満腹度 −3.*水分 −4.*送信しても脱出できません/);
+  await expect(page.locator("#guide-rest")).toContainText("体力が尽きます");
+  await signal.click();
+  await expect(page.getByRole("heading", { name: "街は、再び静かになった。" })).toBeVisible();
+  for (const button of [signal, page.getByRole("button", { name: "休息する" }), page.getByRole("button", { name: "飲料水を使う" })]) {
+    await expect(button).toBeDisabled();
+    await expect(button).toHaveAccessibleDescription(/探索は終了しています/);
+  }
+  await expect(page.locator("#guide-signal .action-reason")).toBeVisible();
+});
+
+for (const width of [320, 390]) test(`危険と行動不能の説明が${width}pxで収まり読める`, async ({ page }) => {
+  const saved = newGame();
+  saved.position = 0; saved.health = 20; saved.hunger = 5; saved.thirst = 6;
+  saved.inventory.food = 0;
+  saved.discovered.push(0);
+  await page.setViewportSize({ width, height: 844 });
+  await page.addInitScript(saved => localStorage.setItem("afterlight.save.v1", JSON.stringify(saved)), saved);
+  await page.goto("/");
+  await expect(page.locator("#guide-search")).toContainText("負傷する可能性");
+  await expect(page.locator("#guide-search")).toContainText("体力が尽きます");
+  await expect(page.getByRole("button", { name: "保存食を使う" })).toHaveAccessibleDescription(/所持 0個/);
+  const layout = await page.locator(".action-details").evaluateAll(elements => ({
+    inside: elements.every(element => { const r = element.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }),
+    readable: elements.every(element => parseFloat(getComputedStyle(element).fontSize) >= 11),
+    overflow: document.documentElement.scrollWidth > innerWidth,
+  }));
+  expect(layout).toEqual({ inside: true, readable: true, overflow: false });
+  await page.screenshot({ path: `test-results/guidance-${width}.png`, fullPage: true });
 });

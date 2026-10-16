@@ -1,5 +1,7 @@
+import { assessAction } from "./game/actions";
+import type { Stat } from "./game/actions";
 import "./style.css";
-import { act, canAct, newGame } from "./game/engine";
+import { act, newGame } from "./game/engine";
 import {
   clock,
   coordinates,
@@ -104,41 +106,44 @@ function map(): string {
   </div>`;
 }
 
+const statNames: Record<Stat, string> = { health: "体力", hunger: "満腹度", thirst: "水分", energy: "気力" };
+
+function guidance(action: Action, id: string): { disabled: string; details: string } {
+  const assessment = assessAction(state, action);
+  const costs = Object.entries(assessment.costs).map(([key, amount]) => `${statNames[key as Stat]} −${amount}`);
+  const supplies = Object.entries(assessment.supplies).map(([key, amount]) => `${ITEM_NAMES[key as Item]} ${amount}個を消費`);
+  const recovery = Object.entries(assessment.recovery).map(([key, amount]) => `${statNames[key as Stat]} +${amount}（実回復 +${Math.min(amount!, 100 - state[key as Stat])}）`);
+  return {
+    disabled: `${assessment.allowed ? "" : "disabled"} aria-describedby="${id}"`,
+    details: `<div id="${id}" class="action-details"><p class="action-cost">${[`${assessment.hours}時間`, ...supplies, ...costs].join(" / ")}</p>${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("")}${assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("")}</div>`,
+  };
+}
+function actionButton(action: Action, label: string, glyph: string, style = "primary"): string {
+  const info = guidance(action, `guide-${action.type}`);
+  return `<button class="button ${style}" data-action="${action.type}" data-focus="${action.type}" ${info.disabled}>${icon(glyph)} ${label}</button>${info.details}`;
+}
 function location(): string {
   const tile = tileAt(selected);
   const terrain = TERRAIN[tile.terrain];
   const here = selected === state.position;
-  const exhausted = state.searched.includes(selected);
-  const adjacent = neighbors(state.position).includes(selected);
   return `<section class="location-panel panel" aria-labelledby="location-title">
     <div class="panel-overline"><span>LOCATION / ${coordinates(selected)}</span><span class="live-dot"></span></div>
     <div class="location-art art-${tile.terrain}"><span class="art-orbit"></span>${icon(tile.terrain)}<span class="art-caption">SECTOR 07 — ${coordinates(selected)}</span></div>
     <div class="location-copy"><span class="eyebrow">${here ? "現在地" : "選択中の地点"}</span><h2 id="location-title">${terrain.name}</h2><p>${terrain.detail}</p>
       <dl class="location-info"><div><dt>見つかる物</dt><dd>${terrain.finds}</dd></div><div><dt>注意事項</dt><dd>${terrain.risk}</dd></div></dl>
-      <div class="location-actions">${
-        here
-          ? `
-        <button class="button primary" data-action="search" data-focus="search" ${canAct(state, { type: "search" }) ? "" : "disabled"}>${icon("search")} ${exhausted ? "探索済み" : "周囲を探索する"}<span>1時間</span></button>
-        <p class="action-cost">${exhausted ? "ここにはもう物資がありません" : state.energy < 10 ? "気力が足りません。休息してください" : "気力 −10 / 満腹度 −5 / 水分 −6"}</p>
-        <button class="button secondary" data-action="rest" data-focus="rest" ${state.status === "active" ? "" : "disabled"}>${icon("rest")} 休息する<span>1時間</span></button>
-        <p class="action-cost">気力 +35 / 満腹度 −6 / 水分 −8</p>
-        ${selected === TOWER ? `<button class="button signal" data-action="signal" data-focus="signal" ${canAct(state, { type: "signal" }) ? "" : "disabled"}>${icon("tower")} 救難信号を送る</button><p class="action-cost">スクラップ3個を消費 / 1時間</p>` : ""}
-      `
-          : `<button class="button primary" data-action="move" data-focus="move" ${canAct(state, { type: "move", target: selected }) ? "" : "disabled"}>${icon("arrow")} ここへ移動<span>1時間</span></button><p class="action-cost">${!adjacent ? "隣接する地点から移動してください" : state.energy < 6 ? "気力が足りません。現在地で休息してください" : "気力 −6 / 満腹度 −3 / 水分 −4"}</p><button class="text-button back-button" data-action="current">${icon("location")} 現在地に戻る</button>`
+      <div class="location-actions">${here
+        ? actionButton({ type: "search" }, state.searched.includes(selected) ? "探索済み" : "周囲を探索する", "search") + actionButton({ type: "rest" }, "休息する", "rest", "secondary") + (selected === TOWER ? actionButton({ type: "signal" }, "救難信号を送る", "tower", "signal") : "")
+        : actionButton({ type: "move", target: selected }, "ここへ移動", "arrow") + `<button class="text-button back-button" data-action="current">${icon("location")} 現在地に戻る</button>`
       }</div>
     </div></section>`;
 }
-
 function inventory(): string {
-  const effects: Record<Item, string> = {
-    water: "水分 +40",
-    food: "満腹度 +35",
-    bandage: "体力 +30",
-    scrap: "通信塔の修理に使用",
-  };
   return `<section class="inventory panel" aria-labelledby="inventory-title"><div class="section-heading"><h2 id="inventory-title">${icon("pack")}バックパック</h2><span>SUPPLIES</span></div>
-    <div class="inventory-grid">${(Object.keys(ITEM_NAMES) as Item[]).map((item) => `<div class="item ${state.inventory[item] === 0 ? "empty" : ""}"><div class="item-icon">${icon(item)}</div><div class="item-copy"><h3>${ITEM_NAMES[item]} <b data-testid="item-${item}">×${state.inventory[item]}</b></h3><span>${effects[item]}</span></div>${item === "scrap" ? `<span class="material-tag">部品</span>` : `<button class="use-button" data-item="${item}" data-focus="use-${item}" aria-label="${ITEM_NAMES[item]}を使う" ${canAct(state, { type: "use", item }) ? "" : "disabled"}>使う</button>`}</div>`).join("")}</div>
-    <p class="inventory-note">使用は1時間。満腹度 −1 / 水分 −2も消費します。</p></section>`;
+    <div class="inventory-grid">${(Object.keys(ITEM_NAMES) as Item[]).map(item => {
+      const info = guidance({ type: "use", item }, `guide-use-${item}`);
+      return `<div class="item ${state.inventory[item] === 0 ? "empty" : ""}"><div class="item-icon">${icon(item)}</div><div class="item-copy"><h3>${ITEM_NAMES[item]} <b data-testid="item-${item}">×${state.inventory[item]}</b></h3>${item === "scrap" ? '<span>通信塔の修理に使用</span>' : ""}</div>${item === "scrap" ? `<span class="material-tag">部品</span>` : `<button class="use-button" data-item="${item}" data-focus="use-${item}" aria-label="${ITEM_NAMES[item]}を使う" ${info.disabled}>使う</button>${info.details}`}</div>`;
+    }).join("")}</div>
+    <p class="inventory-note">物資は上限100まで回復してから、使用に伴う満腹度・水分を消費します。</p></section>`;
 }
 
 function ending(): string {
