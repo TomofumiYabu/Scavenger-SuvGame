@@ -56,7 +56,7 @@ export class SaveStore {
       if (current !== this.expected || current !== null && !("state" in decodeSave(current))) {
         this.mode = "protected"; this.message = "保存データが別の画面で変更されたため保護しました。再読込して確認してください。今回の探索は保存されません。"; return false;
       }
-      // Keep the exact old catalog raw permanently before rotating ordinary backups.
+      // Keep the exact old content raw permanently before rotating ordinary backups.
       if (current !== null && decodeSave(current).kind === "migrated") this.archive(current, true);
       if (current !== null) this.verifiedWrite(BACKUP_KEY, current);
       else if (this.migratedSnapshot !== null) this.verifiedWrite(BACKUP_KEY, this.migratedSnapshot);

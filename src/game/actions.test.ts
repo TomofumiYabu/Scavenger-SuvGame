@@ -110,8 +110,8 @@ describe("preview and execution agree", () => {
   });
 });
 
-it("所持品の数値上限でも通常探索が破損状態を作らない", () => {
-  const state = newGame(); state.inventory.water = Number.MAX_SAFE_INTEGER;
+it("地面の数値上限でも通常探索が破損状態を作らない", () => {
+  const state = newGame(); state.ground[state.position] = { water: Number.MAX_SAFE_INTEGER };
   expect(assessAction(state, { type: "search" }).allowed).toBe(false);
   expect(act(state, { type: "search" })).toBe(state);
 });

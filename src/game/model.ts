@@ -26,7 +26,7 @@ export interface Tile {
 }
 export interface GameState {
   version: 2;
-  contentVersion: 3;
+  contentVersion: 4;
   pendingEvent: { id: EventId; tile: number } | null;
   resolvedEvents: EventId[];
   turn: number;
@@ -36,6 +36,7 @@ export interface GameState {
   thirst: number;
   energy: number;
   inventory: Record<Item, number>;
+  ground: Partial<Record<number, Partial<Record<Item, number>>>>;
   discovered: number[];
   searched: number[];
   rng: number;
@@ -45,6 +46,7 @@ export interface GameState {
 export type Action =
   | { type: "move"; target: number }
   | { type: "search"; mode?: SearchMode }
+  | { type: "pickup" | "drop"; item: Item; quantity: number }
   | { type: "rest" }
   | { type: "use"; item: Item }
   | { type: "signal" }

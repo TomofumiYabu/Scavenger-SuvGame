@@ -35,17 +35,19 @@ for (const width of [320, 390, 1280]) {
     await expect(page.locator("#event-title")).toBeFocused();
     // Previewing another tile must not send "return to map" to that selection.
     await page.locator('[data-tile="36"]').click();
-    const choice = page.getByRole("button", { name: "入口の箱を回収する" });
+    const choice = page.getByRole("button", { name: "入口の箱を調べる" });
     if (width === 320) await choice.tap();
     else if (width === 390) await choice.click();
     else { await choice.focus(); await page.keyboard.press("Enter"); }
     await expect(page.locator("#outcome-title")).toBeFocused();
     await visibleInViewport(page.locator("#outcome-title"));
     const panel = page.locator(".outcome-panel");
-    await expect(panel).toContainText("選んだ行動：入口の箱を回収する");
+    await expect(panel).toContainText("選んだ行動：入口の箱を調べる");
     await expect(panel).toContainText("経過時間：1時間");
     await expect(panel).toContainText("気力 −4（85 → 81）");
-    await expect(panel).toContainText("飲料水 +1個（2 → 3）");
+    await expect(panel).toContainText("飲料水 +1個（0 → 1）");
+    await expect(panel).toContainText("所持品：変化なし");
+    await expect(page.getByTestId("item-water")).toHaveText("×2");
     await panel.screenshot({ path: `test-results/result-panel-${width}.png` });
     await page.screenshot({ path: `test-results/result-page-${width}.png`, fullPage: true });
     const saved = await storage(page);

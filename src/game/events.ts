@@ -28,8 +28,8 @@ export const CACHE_EVENT: GameEvent = {
   repeat: "once-per-expedition",
   story: "壁の裂け目に、古い避難用の備蓄庫が見える。入口には飲料水と保存食の箱。奥の棚では金属部品が鈍く光っている。天井から、砂がこぼれた。",
   choices: [
-    { id: "safe", label: "入口の箱を回収する", detail: "棚には触れず、手の届く物だけを持ち出す。", hours: 1, costs: { energy: 4, hunger: 3, thirst: 4 }, rewards: { water: 1, food: 1 }, injury: false, outcome: "入口の箱から飲料水 ×1、保存食 ×1を回収した。" },
-    { id: "deep", label: "棚の奥まで踏み込む", detail: "送信機に使えそうな部品が見える。傾いた棚は、いつ崩れてもおかしくない。負傷の確率は3分の1。", hours: 1, costs: { energy: 12, hunger: 5, thirst: 6 }, rewards: { scrap: 2, water: 1 }, injury: true, outcome: "傾いた棚の奥からスクラップ ×2、飲料水 ×1を回収した。" },
+    { id: "safe", label: "入口の箱を調べる", detail: "棚には触れず、手の届く物を地面にまとめる。拾う物はあとで選べる。", hours: 1, costs: { energy: 4, hunger: 3, thirst: 4 }, rewards: { water: 1, food: 1 }, injury: false, outcome: "入口の箱から飲料水 ×1、保存食 ×1を見つけ、地面にまとめた。拾う物を選べる。" },
+    { id: "deep", label: "棚の奥まで踏み込む", detail: "送信機に使えそうな部品が見える。傾いた棚は、いつ崩れてもおかしくない。負傷の確率は3分の1。", hours: 1, costs: { energy: 12, hunger: 5, thirst: 6 }, rewards: { scrap: 2, water: 1 }, injury: true, outcome: "傾いた棚の奥からスクラップ ×2、飲料水 ×1を見つけ、地面にまとめた。拾う物を選べる。" },
     { id: "leave", label: "何も取らず立ち去る", detail: "今ある物資を頼りに先へ進む。時間も資源も使わない。", hours: 0, costs: {}, rewards: {}, injury: false, outcome: "備蓄庫には踏み込まず、先を急ぐことにした。" },
   ] satisfies EventChoice[],
 };
@@ -40,7 +40,7 @@ const CLINIC_EVENT: GameEvent = {
   story: "窓から差す光が、金属の処置台を照らしている。布をかぶせた棚には、まだ封の開いていない包帯。持ち水で傷を洗うか、包帯を旅の備えにするか。廊下の時計だけが止まっている。",
   choices: [
     { id: "treat", label: "持ち水で傷を洗い処置する", detail: "飲料水を1個使い、その場で体力を回復する。包帯は持ち出さない。", hours: 1, costs: { energy: 4, hunger: 3, thirst: 4 }, recovery: { health: 35 }, supplies: { water: 1 }, rewards: {}, injury: false, outcome: "飲料水 ×1で傷を洗い、処置台で手当てした。" },
-    { id: "pack", label: "包帯をまとめて持ち出す", detail: "棚の奥まで手を伸ばし、あとで使える包帯を確保する。今の傷は回復しない。", hours: 1, costs: { energy: 10, hunger: 5, thirst: 6 }, rewards: { bandage: 2 }, injury: false, outcome: "棚の包帯 ×2をまとめ、次の負傷に備えた。" },
+    { id: "pack", label: "包帯をまとめて確保する", detail: "棚の奥まで手を伸ばし、あとで使える包帯を地面にまとめる。拾う物はあとで選べる。今の傷は回復しない。", hours: 1, costs: { energy: 10, hunger: 5, thirst: 6 }, rewards: { bandage: 2 }, injury: false, outcome: "棚の包帯 ×2を地面にまとめた。拾えば次の負傷に備えられる。" },
     { id: "leave", label: "何も取らず立ち去る", detail: "処置台を離れて先へ進む。時間も資源も使わない。", hours: 0, costs: {}, rewards: {}, injury: false, outcome: "処置台には手を付けず、先へ進むことにした。" },
   ],
 };

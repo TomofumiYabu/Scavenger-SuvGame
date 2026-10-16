@@ -1,4 +1,4 @@
-import { legacyInventory } from "./fixtures";
+import { legacyInventory, withoutGround } from "./fixtures";
 import { expect, test } from "@playwright/test";
 import { newGame } from "../src/game/engine";
 import type { Page } from "@playwright/test";
@@ -20,6 +20,9 @@ test("探索、移動、アイテム使用、自動保存からの復元", async
   );
   await expect(page.getByTestId("position")).toHaveText("B6");
   await page.getByRole("button", { name: "手早く探す" }).click();
+  await expect(page.getByTestId("item-water")).toHaveText("×2");
+  await expect(page.getByTestId("ground-water")).toHaveText("×1");
+  await page.getByRole("button", { name: "飲料水を1個拾う", exact: true }).click();
   await expect(page.getByTestId("item-water")).toHaveText("×3");
   await expect(page.getByRole("button", { name: "手早く探す" })).toBeDisabled();
   await move(page, "B5");
@@ -40,8 +43,10 @@ test("UIから資源を集めて脱出し、終了状態も保存する", async 
   await move(page, "B5");
   await page.getByRole("button", { name: "何も取らず立ち去る" }).click();
   await page.getByRole("button", { name: "手早く探す" }).click();
+  await page.getByRole("button", { name: "スクラップの拾える分（2個）を拾う", exact: true }).click();
   await move(page, "C5");
   await page.getByRole("button", { name: "手早く探す" }).click();
+  await page.getByRole("button", { name: "スクラップを1個拾う", exact: true }).click();
   await expect(page.getByTestId("item-scrap")).toHaveText("×3");
   await page.getByRole("button", { name: "飲料水を使う" }).click();
   await page.getByRole("button", { name: "保存食を使う" }).click();
@@ -117,6 +122,8 @@ test("スマートフォン幅で横スクロールせず移動と探索がで�
   ).toBe(true);
   await move(page, "C6");
   await page.getByRole("button", { name: "手早く探す" }).click();
+  await expect(page.getByTestId("ground-scrap")).toHaveText("×1");
+  await page.getByRole("button", { name: "スクラップを1個拾う", exact: true }).click();
   await expect(page.getByTestId("item-scrap")).toHaveText("×1");
   await page.screenshot({ path: "test-results/mobile.png", fullPage: true });
 });
@@ -291,7 +298,7 @@ for (const width of [320, 390]) test(`備蓄庫の選択と再読込・キーボ
   await expect(title).toBeFocused();
   await expect(page.getByRole("button", { name: "手早く探す" })).toHaveAccessibleDescription(/選択を先に/);
   await expect(page.getByRole("button", { name: "飲料水を使う" })).toBeDisabled();
-  const safe = page.getByRole("button", { name: "入口の箱を回収する" });
+  const safe = page.getByRole("button", { name: "入口の箱を調べる" });
   await expect(safe).toHaveAccessibleDescription(/1時間.*気力 −4.*飲料水 \+1個.*保存食 \+1個/);
   await expect(page.getByRole("button", { name: "棚の奥まで踏み込む" })).toHaveAccessibleDescription(/負傷する可能性/);
   await page.reload(); await expect(title).toBeFocused();
@@ -300,8 +307,10 @@ for (const width of [320, 390]) test(`備蓄庫の選択と再読込・キーボ
   await page.screenshot({ path: `test-results/event-${width}.png`, fullPage: true });
   await safe.focus(); await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "選択の結果" })).toBeFocused();
-  await expect(page.locator(".outcome-panel").getByText("入口の箱から飲料水 ×1、保存食 ×1を回収した。", { exact: true })).toBeVisible();
+  await expect(page.locator(".outcome-panel")).toContainText("発見→地点に残る：飲料水 +1個");
   await expect(page.getByTestId("remaining")).toHaveText("46");
+  await expect(page.getByTestId("item-water")).toHaveText("×2");
+  await page.getByRole("button", { name: "飲料水を1個拾う", exact: true }).click();
   await expect(page.getByTestId("item-water")).toHaveText("×3");
   await page.reload(); await expect(title).toHaveCount(0);
   await expect(page.getByTestId("remaining")).toHaveText("46");
@@ -313,7 +322,7 @@ test("未来の主保存は旧保存があっても保護し、通常プレイ�
   await page.addInitScript(({ original, legacy }) => {
     if (localStorage.getItem("afterlight.save.v2") === null) localStorage.setItem("afterlight.save.v2", original);
     localStorage.setItem("afterlight.save.v1", legacy);
-  }, { original, legacy: JSON.stringify({ ...newGame(), version: 1, inventory: legacyInventory(newGame().inventory), turn: 10 }) });
+  }, { original, legacy: JSON.stringify({ ...withoutGround(newGame()), version: 1, inventory: legacyInventory(newGame().inventory), turn: 10 }) });
   await page.goto("/");
   await expect(page.getByRole("status")).toContainText("対応していません");
   await expect(page.getByTestId("remaining")).toHaveText("48");
@@ -329,7 +338,7 @@ test("未来の主保存は旧保存があっても保護し、通常プレイ�
 });
 
 test("旧保存は移行後も原文を保持し、直前の保存を確認して復旧する", async ({ page }) => {
-  const legacy = JSON.stringify({ ...newGame(), version: 1, inventory: legacyInventory(newGame().inventory), turn: 9 }, null, 2);
+  const legacy = JSON.stringify({ ...withoutGround(newGame()), version: 1, inventory: legacyInventory(newGame().inventory), turn: 9 }, null, 2);
   await page.addInitScript(legacy => {
     if (!localStorage.getItem("afterlight.save.v1")) localStorage.setItem("afterlight.save.v1", legacy);
   }, legacy);
@@ -407,7 +416,7 @@ test.describe("診療所・避難所の選択", () => {
         await expect(page.getByRole("button", { name: "休息する" })).toBeDisabled();
         await expect(page.getByRole("button", { name: "飲料水を使う" })).toHaveAccessibleDescription(/出来事の選択を先に/);
         const choice = event === "clinic"
-          ? width === 1280 ? "包帯をまとめて持ち出す" : "持ち水で傷を洗い処置する"
+          ? width === 1280 ? "包帯をまとめて確保する" : "持ち水で傷を洗い処置する"
           : width === 320 ? "食料と水を温めて食べる" : "火のそばで眠る";
         const button = page.getByRole("button", { name: choice });
         if (choice === "持ち水で傷を洗い処置する") await expect(button).toHaveAccessibleDescription(/飲料水 1個を消費.*気力 −4.*体力 \+35（実回復 \+5）/);
@@ -424,7 +433,10 @@ test.describe("診療所・避難所の選択", () => {
         await expect(page.getByRole("heading", { name: "選択の結果" })).toBeFocused();
         await expect(title).toHaveCount(0);
         await expect(page.getByTestId("remaining")).toHaveText("46");
-        if (choice === "包帯をまとめて持ち出す") {
+        if (choice === "包帯をまとめて確保する") {
+          await expect(page.getByTestId("item-bandage")).toHaveText("×1");
+          await expect(page.getByTestId("ground-bandage")).toHaveText("×2");
+          await page.getByRole("button", { name: "包帯の拾える分（2個）を拾う", exact: true }).click();
           await expect(page.getByTestId("item-bandage")).toHaveText("×3");
           await expect(page.getByTestId("health")).toHaveText("95 / 100");
         } else if (event === "clinic") {
@@ -442,7 +454,7 @@ test.describe("診療所・避難所の選択", () => {
         await page.reload(); await expect(title).toHaveCount(0);
         await expect(page.getByTestId("remaining")).toHaveText("46");
         const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("afterlight.save.v2")!));
-        expect(stored.contentVersion).toBe(3); expect(stored.resolvedEvents).toContain(event === "clinic" ? "clinic-supplies" : "shelter-embers");
+        expect(stored.contentVersion).toBe(4); expect(stored.resolvedEvents).toContain(event === "clinic" ? "clinic-supplies" : "shelter-embers");
       });
     }
   }
@@ -451,14 +463,14 @@ test.describe("診療所・避難所の選択", () => {
 test("内容版1の選択待ちを引き継ぎ、初回保存前の原文退避と旧版バックアップ復旧を確認する", async ({ page }) => {
   const saved = newGame(); saved.position = 29; saved.turn = 8; saved.discovered = [...new Set([...saved.discovered, 29])];
   saved.pendingEvent = { id: "collapsed-cache", tile: 29 };
-  const original = JSON.stringify({ ...saved, contentVersion: 1, inventory: legacyInventory(saved.inventory) }, null, 2);
+  const original = JSON.stringify({ ...withoutGround(saved), contentVersion: 1, inventory: legacyInventory(saved.inventory) }, null, 2);
   await page.addInitScript(original => {
     if (!localStorage.getItem("afterlight.save.v2")) localStorage.setItem("afterlight.save.v2", original);
   }, original);
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "崩れた備蓄庫" })).toBeFocused();
   expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBe(original);
-  await page.getByRole("button", { name: "入口の箱を回収する" }).click();
+  await page.getByRole("button", { name: "入口の箱を調べる" }).click();
   expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2.original.0"))).toBe(original);
   expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2.backup"))).toBe(original);
   await page.getByText("保存の確認・復旧", { exact: true }).click();

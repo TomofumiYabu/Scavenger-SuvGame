@@ -1,6 +1,5 @@
 import { legacyInventory } from "../../tests/fixtures";
 import { describe, expect, it } from "vitest";
-import { ITEM_IDS } from "./items";
 import { assessAction } from "./actions";
 import { act, newGame } from "./engine";
 import { neighbors, TILES } from "./model";
@@ -31,9 +30,10 @@ describe("two search methods", () => {
       const preview = assessAction(state, action);
       const rewards = { ...loot };
       if (mode === "careful") { rewards[bonus] = (rewards[bonus] ?? 0) + 1; rewards[({ ruins: "snack", street: "coffee", park: "electrolyte", clinic: "medkit", shelter: "snack", tower: "coffee" } as const)[terrain]] = 1; }
-      expect(preview).toMatchObject({ allowed: true, hours: mode === "quick" ? 1 : 2, costs: mode === "quick" ? { energy: 10, hunger: 5, thirst: 6 } : { energy: 16, hunger: 10, thirst: 12 }, rewards });
+      expect(preview).toMatchObject({ allowed: true, hours: mode === "quick" ? 1 : 2, costs: mode === "quick" ? { energy: 10, hunger: 5, thirst: 6 } : { energy: 16, hunger: 10, thirst: 12 }, groundRewards: rewards, rewards: {} });
       const result = act(state, action);
-      for (const item of ITEM_IDS) expect(result.inventory[item] - state.inventory[item]).toBe(rewards[item] ?? 0);
+      expect(result.inventory).toEqual(state.inventory);
+      expect(result.ground[state.position]).toEqual(rewards);
       const injury = mode === "quick" && terrain === "ruins" ? 10 : 0;
       expect(preview.injury).toEqual(injury ? { oneIn: 3, damage: 10 } : null);
       for (const stat of ["health", "hunger", "thirst", "energy"] as const) expect(result[stat]).toBe(preview.after[stat] - (stat === "health" ? injury : 0));
@@ -67,13 +67,13 @@ describe("two search methods", () => {
     expect(act(exact, careful).energy).toBe(0);
     const fragile = { ...at("ruins"), health: 10 };
     expect(act(fragile, quick).status).toBe("dead");
-    expect(act(fragile, careful)).toMatchObject({ health: 10, status: "active", inventory: { scrap: 3 } });
+    expect(act(fragile, careful)).toMatchObject({ health: 10, status: "active", inventory: fragile.inventory, ground: { [fragile.position]: { scrap: 3, water: 1, snack: 1 } } });
     const lastChance = { ...at("tower"), turn: 46 };
     lastChance.inventory.scrap = 2;
     const fast = act(lastChance, quick);
-    expect(act(fast, { type: "signal" })).toMatchObject({ turn: 48, status: "won" });
+    expect(act(act(fast, { type: "pickup", item: "scrap", quantity: 1 }), { type: "signal" })).toMatchObject({ turn: 48, status: "won" });
     const slow = act(lastChance, careful);
-    expect(slow).toMatchObject({ turn: 48, status: "lost", inventory: { scrap: 4 } });
+    expect(slow).toMatchObject({ turn: 48, status: "lost", inventory: { scrap: 2 }, ground: { [lastChance.position]: { scrap: 2, coffee: 1 } } });
     expect(act(slow, { type: "signal" })).toBe(slow);
   });
 
@@ -87,7 +87,7 @@ describe("two search methods", () => {
     expect(act(state, careful)).toMatchObject({ turn: 48, status: "lost" });
     state.health = 24; state.hunger = 7; state.thirst = 7;
     const dead = act(state, careful);
-    expect(dead).toMatchObject({ turn: 48, health: 0, status: "dead", inventory: { food: 4, water: 3 }, searched: [state.position] });
+    expect(dead).toMatchObject({ turn: 48, health: 0, status: "dead", inventory: state.inventory, ground: { [state.position]: { food: 2, water: 1, snack: 1 } }, searched: [state.position] });
     expect(assessAction(state, careful).after.health).toBe(0);
     expect(deserialize(JSON.stringify(dead))).toEqual(dead);
   });
@@ -99,7 +99,7 @@ describe("two search methods", () => {
       expect(assessAction(state, action).allowed).toBe(false);
       expect(act(state, action)).toBe(state);
     }
-    state.inventory.scrap = Number.MAX_SAFE_INTEGER - 1;
+    state.ground[state.position] = { scrap: Number.MAX_SAFE_INTEGER };
     expect(act(state, quick)).toBe(state);
     expect(act(state, careful)).toBe(state);
     const waiting = at("ruins"); waiting.pendingEvent = { id: "collapsed-cache", tile: waiting.position };

@@ -1,6 +1,7 @@
 import { act, newGame } from "../game/engine";
 import { isSearchMode } from "../game/actions";
-import type { Action, ChoiceId, EventId, Item } from "../game/model";
+import { isItem } from "../game/items";
+import type { Action, ChoiceId, EventId } from "../game/model";
 import { SaveStore } from "../game/storage";
 import { captureFocus, connectDialogs, restoreFocus, reveal } from "./focus";
 import { eventOutcome } from "./outcome";
@@ -55,12 +56,19 @@ export function startGame(app: HTMLElement): void {
       else restoreFocus(focus);
       return;
     }
+    if (command === "show-ground") { selected = state.position; draw(); reveal(game.querySelector("#ground-title")); return; }
     if (command === "show-ending") { reveal(game.querySelector("#ending-title")); return; }
     let action: Action | undefined;
     if (command === "move") action = { type: "move", target: selected };
     if (command === "search" && isSearchMode(button.dataset.searchMode)) action = { type: "search", mode: button.dataset.searchMode };
     if (command === "rest" || command === "signal") action = { type: command };
-    if (button.dataset.item) action = { type: "use", item: button.dataset.item as Item };
+    if (command === "pickup" || command === "drop") {
+      const raw = button.dataset.quantity;
+      if (!isItem(button.dataset.item) || !raw || !/^[1-9]\d*$/.test(raw)) return;
+      const quantity = Number(raw);
+      if (!Number.isSafeInteger(quantity)) return;
+      action = { type: command, item: button.dataset.item, quantity };
+    } else if (isItem(button.dataset.item)) action = { type: "use", item: button.dataset.item };
     if (button.dataset.choice) action = { type: "choose", event: button.dataset.event as EventId, tile: Number(button.dataset.eventTile), choice: button.dataset.choice as ChoiceId };
     if (!action) return;
     const next = act(state, action);

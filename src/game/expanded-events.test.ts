@@ -26,8 +26,8 @@ const injured = (state: GameState): GameState => ({ ...state, health: 55, hunger
   });
   it("包帯を選ぶと今の傷を残し、後の処置を2回分持ち出す", () => {
     const state = injured(clinic()); const next = act(state, choose(state, "pack"));
-    expect(next).toMatchObject({ health: 55, hunger: 25, thirst: 24, energy: 10, inventory: { water: 2, bandage: 3 }, rng: state.rng });
-    expect(act(next, { type: "use", item: "bandage" })).toMatchObject({ health: 85, inventory: { bandage: 2 } });
+    expect(next).toMatchObject({ health: 55, hunger: 25, thirst: 24, energy: 10, inventory: { water: 2, bandage: 1 }, ground: { [state.position]: { bandage: 2 } }, rng: state.rng });
+    expect(act(act(next, { type: "pickup", item: "bandage", quantity: 2 }), { type: "use", item: "bandage" })).toMatchObject({ health: 85, inventory: { bandage: 2 } });
   });
   it("温めた食事は両方の物資を使い、満腹度・水分・気力を回復する", () => {
     const state = injured(shelter()); const next = act(state, choose(state, "meal"));

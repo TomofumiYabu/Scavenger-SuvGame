@@ -10,18 +10,19 @@ interface FocusSnapshot {
 
 export function captureFocus(element: HTMLElement | null = document.activeElement instanceof HTMLElement ? document.activeElement : null): FocusSnapshot {
   return { element, key: element?.dataset.focus, description: element?.getAttribute("aria-describedby") ?? undefined,
-    region: element?.closest<HTMLElement>(".item, .location-actions, .map-panel, .inventory, .recovery") ?? null,
+    region: element?.closest<HTMLElement>(".ground-item, .ground, .item, .location-actions, .map-panel, .inventory, .recovery") ?? null,
     x: window.scrollX, y: window.scrollY, top: element?.getBoundingClientRect().top };
 }
 
 function usable(element: HTMLElement | null): element is HTMLElement {
-  return !!element?.isConnected && !element.matches(":disabled");
+  return !!element?.isConnected && !element.matches(":disabled") && !element.closest("[hidden]");
 }
 
 export function restoreFocus(snapshot: FocusSnapshot): void {
   const keyed = snapshot.key ? document.querySelector<HTMLElement>(`[data-focus="${CSS.escape(snapshot.key)}"]`) : null;
   let target = usable(snapshot.element) ? snapshot.element : usable(keyed) ? keyed : null;
-  if (!target && snapshot.description) target = document.getElementById(snapshot.description);
+  if (!target && snapshot.description) { const description = document.getElementById(snapshot.description); if (usable(description)) target = description; }
+  if (!target && snapshot.region?.matches(".ground-item") && snapshot.region.closest("[hidden]")) target = document.getElementById("ground-title");
   if (!target && snapshot.region?.isConnected) target = snapshot.region.matches(".location-actions") ? snapshot.region : snapshot.region.querySelector<HTMLElement>("h3, h2, summary");
   if (target) target.focus({ preventScroll: true });
   const anchor = target && target === snapshot.element && snapshot.top !== undefined

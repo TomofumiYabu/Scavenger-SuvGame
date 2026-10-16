@@ -25,7 +25,7 @@ export const shell = `
   <dialog id="help-dialog" aria-labelledby="help-title">
     <span class="eyebrow">FIELD MANUAL / 01</span><h2 id="help-title">この街で、生き延びる。</h2>
     <p>北東の通信塔へ向かい、<strong>スクラップ3個</strong>で救難信号を送ってください。残された時間は48時間です。</p>
-    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地で「手早く探す」（1時間）か「慎重に探す」（2時間）を選びます。慎重な探索は負傷せず、主な物資を1個多く、地形ごとの追加物資も1個得ます。どちらか一度でその地点は探索済みになります。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。探索以外の通常行動は1時間です。廃墟・診療所・避難所で出来事に出会ったら、費用と危険を読んで選択してください。立ち去る選択は時間を使いません。</li><li>満腹度・水分が0の時間ごとに、それぞれ体力が12減ります。廃墟の手早い探索では負傷することもあります。</li><li>バックパックの容量は24です。容量は各物資に表示されます。探索・出来事の収穫がすべて入らない場合は回収できず、時間も進みません。物資を使って空きを作ってください。出来事の選択中は、立ち去ってから物資を使えます。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
+    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地で「手早く探す」（1時間）か「慎重に探す」（2時間）を選びます。慎重な探索は負傷せず、主な物資を1個多く、地形ごとの追加物資も1個得ます。どちらか一度でその地点は探索済みになります。見つけた物資は地点に残るので、現在地の「地点に残した物」から必要な分を拾います。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。探索以外の通常行動は1時間です。廃墟・診療所・避難所で出来事に出会ったら、費用と危険を読んで選択してください。立ち去る選択は時間を使いません。</li><li>満腹度・水分が0の時間ごとに、それぞれ体力が12減ります。廃墟の手早い探索では負傷することもあります。</li><li>バックパックの容量は24です。容量は各物資に表示されます。探索・出来事で見つけた物資は地点に残ります。入る分だけ拾い、バックパックの「1個置く」で空きを作れます。拾う・置くは0時間。置いた物も残り、移動・再訪・再読込でも失われません。出来事の選択中や探索終了後は拾う・置くを行えません。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
     <p class="muted">進行状況はこのブラウザに自動保存されます。Tab と Enter、またはタップ・クリックで操作できます。</p>
     <form method="dialog"><button class="button primary">探索に戻る ${icon("arrow")}</button></form>
   </dialog>
@@ -75,9 +75,11 @@ function map(): string {
         const isTower = tile.id === TOWER;
         const seen = known || isTower;
         const searched = state.searched.includes(tile.id);
+        const hasGround = ITEM_IDS.some(item => (state.ground[tile.id]?.[item] ?? 0) > 0);
         return `<button class="tile terrain-${tile.terrain} ${!seen ? "fog" : ""} ${isCurrent ? "current" : ""} ${selected === tile.id ? "selected" : ""} ${near.includes(tile.id) ? "adjacent" : ""} ${searched ? "searched" : ""}"
-        style="--hex-x:${tile.x + (tile.y % 2) / 2};--hex-y:${tile.y}" data-tile="${tile.id}" data-focus="tile-${tile.id}" aria-label="${coordinates(tile.id)} ${seen ? TERRAIN[tile.terrain].name : "未発見"}${isCurrent ? " 現在地" : ""}${searched ? " 探索済み" : ""}${near.includes(tile.id) ? " 隣接地点" : ""}" aria-pressed="${selected === tile.id}" ${!seen ? "disabled" : ""}>
+        style="--hex-x:${tile.x + (tile.y % 2) / 2};--hex-y:${tile.y}" data-tile="${tile.id}" data-focus="tile-${tile.id}" aria-label="${coordinates(tile.id)} ${seen ? TERRAIN[tile.terrain].name : "未発見"}${isCurrent ? " 現在地" : ""}${searched ? " 探索済み" : ""}${hasGround ? " 地点に物資あり" : ""}${near.includes(tile.id) ? " 隣接地点" : ""}" aria-pressed="${selected === tile.id}" ${!seen ? "disabled" : ""}>
         <svg class="hex-outline" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon points="50,1 99,25.5 99,74.5 50,99 1,74.5 1,25.5" /></svg>
+        ${hasGround ? '<span class="ground-mark" aria-hidden="true">◆</span>' : ""}
         ${near.includes(tile.id) ? '<span class="neighbor-mark" aria-hidden="true">＋</span>' : ""}
         <span class="tile-coordinate">${coordinates(tile.id)}</span>
         ${seen ? icon(tile.terrain, "terrain-icon") : '<span class="fog-dot">·</span>'}
@@ -85,7 +87,7 @@ function map(): string {
       </button>`;
       },
     ).join("")}</div>
-    <div class="map-legend"><span><i class="legend-player"></i>現在地</span><span><i class="legend-neighbor"></i>＋ 隣接地点</span><span><i class="legend-fog"></i>未発見</span></div>
+    <div class="map-legend"><span><i class="legend-player"></i>現在地</span><span><i class="legend-neighbor"></i>＋ 隣接地点</span><span><i class="legend-fog"></i>未発見</span><span>◆ 物資あり</span></div>
   </div>`;
 }
 
@@ -94,13 +96,14 @@ const statNames: Record<Stat, string> = { health: "体力", hunger: "満腹度",
 function guidance(action: Action, id: string): { disabled: string; details: string } {
   const assessment = assessAction(state, action);
   const costs = Object.entries(assessment.costs).map(([key, amount]) => `${statNames[key as Stat]} −${amount}`);
-  const supplies = Object.entries(assessment.supplies).map(([key, amount]) => `${ITEM_NAMES[key as Item]} ${amount}個を消費`);
+  const supplies = Object.entries(assessment.supplies).map(([key, amount]) => `${ITEM_NAMES[key as Item]} ${amount}個${action.type === "drop" ? "をバックパックから移す" : "を消費"}`);
+  const groundRewards = Object.entries(assessment.groundRewards).map(([key, amount]) => `${ITEM_NAMES[key as Item]} +${amount}個`);
   const rewards = Object.entries(assessment.rewards).map(([key, amount]) => `${ITEM_NAMES[key as Item]} +${amount}個`);
   const recovery = Object.entries(assessment.recovery).map(([key, amount]) => `${statNames[key as Stat]} +${amount}（実回復 +${Math.min(amount!, 100 - state[key as Stat])}）`);
   const capacity = assessment.loadChange === 0n ? [] : [`容量 ${assessment.loadChange > 0n ? "+" : "−"}${assessment.loadChange < 0n ? -assessment.loadChange : assessment.loadChange}${assessment.loadAfter >= 0n ? `（${assessment.load} → ${assessment.loadAfter} / ${CAPACITY}）` : ""}`];
   return {
     disabled: `${assessment.allowed ? "" : "disabled"} aria-describedby="${id}"`,
-    details: `<div id="${id}" class="action-details" tabindex="-1"><p class="action-cost">${[`${assessment.hours}時間`, ...supplies, ...costs, ...capacity].join(" / ")}</p>${rewards.length ? `<p class="action-effect">収穫：${rewards.join(" / ")}</p>` : ""}${action.type === "search" ? `<p class="action-effect">探索による負傷：${assessment.injury ? `${assessment.injury.oneIn}分の1で体力 −${assessment.injury.damage}` : "0（なし）"}</p>` : ""}${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("")}${assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("")}</div>`,
+    details: `<div id="${id}" class="action-details" tabindex="-1"><p class="action-cost">${[`${assessment.hours}時間`, ...supplies, ...costs, ...capacity].join(" / ")}</p>${rewards.length ? `<p class="action-effect">バックパックへ：${rewards.join(" / ")}</p>` : ""}${groundRewards.length ? `<p class="action-effect">${action.type === "drop" ? "地点に置く" : "発見→地点に残る"}：${groundRewards.join(" / ")}</p>` : ""}${action.type === "search" ? `<p class="action-effect">探索による負傷：${assessment.injury ? `${assessment.injury.oneIn}分の1で体力 −${assessment.injury.damage}` : "0（なし）"}</p>` : ""}${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("")}${assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("")}</div>`,
   };
 }
 function actionButton(action: Action, label: string, glyph: string, style = "primary"): string {
@@ -121,15 +124,34 @@ function location(): string {
         ? `<p class="action-details">この地点の探索は、どちらか一度だけです。</p>` + (Object.keys(SEARCH_METHODS) as SearchMode[]).map(mode => actionButton({ type: "search", mode }, SEARCH_METHODS[mode].label, "search")).join("") + actionButton({ type: "rest" }, "休息する", "rest", "secondary") + (selected === TOWER ? actionButton({ type: "signal" }, "救難信号を送る", "tower", "signal") : "")
         : actionButton({ type: "move", target: selected }, "ここへ移動", "arrow") + `<button class="text-button back-button" data-action="current">${icon("location")} 現在地に戻る</button>`
       }</div>
+      <div data-region="ground-navigation"><button class="text-button back-button" data-action="show-ground" data-focus="location-ground" ${state.status !== "active" || state.pendingEvent || !ITEM_IDS.some(item => (state.ground[state.position]?.[item] ?? 0) > 0) ? "disabled" : ""}>現在地 ${coordinates(state.position)} の物資を拾う</button></div>
     </div></section>`;
 }
 function inventory(): string {
-  return `<section class="inventory panel" aria-labelledby="inventory-title"><div class="section-heading"><h2 id="inventory-title" tabindex="-1">${icon("pack")}バックパック</h2><span data-testid="capacity">容量 ${inventoryLoad(state.inventory)} / ${CAPACITY}</span></div><div data-region="capacity-warning">${inventoryLoad(state.inventory) > BigInt(CAPACITY) ? '<p class="action-risk" role="status">容量を超えています。所持品はすべて保持しています。物資を使って空きを作るまで、荷物が増える回収はできません。</p>' : ""}</div>
+  return `<section class="inventory panel" aria-labelledby="inventory-title"><div class="section-heading"><h2 id="inventory-title" tabindex="-1">${icon("pack")}バックパック</h2><span data-testid="capacity">容量 ${inventoryLoad(state.inventory)} / ${CAPACITY}</span></div><div data-region="capacity-warning">${inventoryLoad(state.inventory) > BigInt(CAPACITY) ? '<p class="action-risk" role="status">容量を超えています。所持品はすべて保持しています。物資を使うか地点に置いて空きを作るまで、拾うことはできません。探索で見つけた物は地点に残ります。</p>' : ""}</div>
     <div class="inventory-grid">${ITEM_IDS.map(item => {
       const info = guidance({ type: "use", item }, `guide-use-${item}`);
-      return `<div class="item ${state.inventory[item] === 0 ? "empty" : ""}"><div class="item-icon">${icon(ITEMS[item].icon)}</div><div class="item-copy"><h3 tabindex="-1">${ITEM_NAMES[item]} <b data-testid="item-${item}">×${state.inventory[item]}</b></h3><span>容量 ${ITEMS[item].capacity} / 個 · ${ITEMS[item].description}</span></div>${!ITEMS[item].usable ? `<span class="material-tag">部品</span>` : `<button class="use-button" data-item="${item}" data-focus="use-${item}" aria-label="${ITEM_NAMES[item]}を使う" ${info.disabled}>使う</button>${info.details}`}</div>`;
+      const drop = guidance({ type: "drop", item, quantity: 1 }, `guide-drop-${item}`);
+      return `<div class="item ${state.inventory[item] === 0 ? "empty" : ""}"><div class="item-icon">${icon(ITEMS[item].icon)}</div><div class="item-copy"><h3 tabindex="-1">${ITEM_NAMES[item]} <b data-testid="item-${item}">×${state.inventory[item]}</b></h3><span>容量 ${ITEMS[item].capacity} / 個 · ${ITEMS[item].description}</span></div>${!ITEMS[item].usable ? `<span class="material-tag">部品</span>` : `<button class="use-button" data-item="${item}" data-focus="use-${item}" aria-label="${ITEM_NAMES[item]}を使う" ${info.disabled}>使う</button>${info.details}`}<div class="item-drop"><button class="use-button" data-action="drop" data-item="${item}" data-quantity="1" data-focus="drop-${item}" aria-label="${ITEM_NAMES[item]}をここに1個置く" ${drop.disabled}>ここに1個置く</button>${drop.details}</div></div>`;
     }).join("")}</div>
-    <p class="inventory-note">容量24まで持ち運べます。収穫がすべて入らない場合は回収できません。物資は上限100まで回復してから、使用に伴う満腹度・水分を消費します。</p></section>`;
+    <p class="inventory-note">容量24まで持ち運べます。地点に残した物から必要な分だけ拾えます。拾う・1個置くは0時間で、置いた物は現在地に残ります。物資は上限100まで回復してから、使用に伴う満腹度・水分を消費します。</p></section>`;
+}
+
+function ground(): string {
+  const load = inventoryLoad(state.inventory);
+  const room = BigInt(CAPACITY) > load ? BigInt(CAPACITY) - load : 0n;
+  const counts = state.ground[state.position] ?? {};
+  return `<section class="ground panel" aria-labelledby="ground-title"><div class="section-heading"><h2 id="ground-title" tabindex="-1">地点に残した物</h2><span>現在地 ${coordinates(state.position)}</span></div><p class="ground-note">発見した物・置いた物はこの地点に残ります。必要な分だけ拾えます（0時間）。そのまま移動しても、再訪すれば拾えます。</p><p class="ground-empty" ${ITEM_IDS.some(item => (counts[item] ?? 0) > 0) ? "hidden" : ""}>この地点に残した物はありません。</p><div class="ground-grid">${ITEM_IDS.map(item => {
+    const count = counts[item] ?? 0;
+    const fit = room / BigInt(ITEMS[item].capacity);
+    const quantity = Number(fit < BigInt(count) ? fit : BigInt(count));
+    const one = guidance({ type: "pickup", item, quantity: 1 }, `guide-pickup-${item}`);
+    const bulk = quantity > 0 ? guidance({ type: "pickup", item, quantity }, `guide-pickup-bulk-${item}`) : {
+      disabled: `disabled aria-describedby="guide-pickup-bulk-${item}"`,
+      details: `<div id="guide-pickup-bulk-${item}" class="action-details" tabindex="-1"><p class="action-reason">${count ? "空き容量が足りません。物資を置くか使って空きを作ってください。" : "この地点に残した物はありません。"}</p></div>`,
+    };
+    return `<div class="ground-item ${count ? "" : "empty"}" data-ground-item="${item}" ${count === 0 ? "hidden" : ""}><h3 tabindex="-1">${ITEM_NAMES[item]} <b data-testid="ground-${item}">×${count}</b><small>容量 ${ITEMS[item].capacity} / 個</small></h3><div class="ground-controls"><button class="use-button" data-action="pickup" data-item="${item}" data-quantity="1" data-focus="pickup-${item}" aria-label="${ITEM_NAMES[item]}を1個拾う" ${one.disabled}>1個拾う</button><button class="use-button" data-action="pickup" data-item="${item}" data-quantity="${quantity}" data-focus="pickup-bulk-${item}" aria-label="${ITEM_NAMES[item]}の拾える分（${quantity}個）を拾う" ${bulk.disabled}>拾える分（${quantity}個）を拾う</button></div><div class="ground-guidance"><div><span>1個拾う</span>${one.details}</div><div><span>拾える分</span>${bulk.details}</div></div></div>`;
+  }).join("")}</div></section>`;
 }
 
 function ending(): string {
@@ -153,6 +175,7 @@ function ending(): string {
     </aside>
     <section class="map-panel panel" aria-labelledby="map-title"><div class="section-heading"><div><span class="eyebrow">EXCLUSION ZONE</span><h2 id="map-title">第07隔離区域</h2></div><div class="map-coordinate">${icon("location")}現在地 <strong data-testid="position">${coordinates(state.position)}</strong></div></div>${map()}<div class="map-footer"><span>${icon("location")} 地点を選択して、次の行動を決める</span><span>N ↑</span></div></section>
     ${location()}</div>
+    ${ground()}
     <div class="bottom-grid">${inventory()}<section class="journal panel" aria-labelledby="journal-title"><div class="section-heading"><h2 id="journal-title" tabindex="-1">探索の記録</h2><span>FIELD NOTES</span></div><div class="journal-entries" role="log" aria-live="polite" aria-label="探索の記録">${state.log.map((entry) => `<div class="log-entry log-${entry.kind}"><time>${clock(entry.turn).slice(-5)}</time><p>${escape(entry.text)}</p></div>`).join("")}</div></section></div>
     ${recovery()}
     <footer><span>AFTERLIGHT <span class="footer-divider">/</span> 明日を迎えるための、小さな選択。</span><span class="save-status">${icon(store.mode === "ready" ? "check" : "scrap")}${store.mode === "ready" ? "このブラウザに自動保存" : "保存せずにプレイ中"}</span></footer></main>`;

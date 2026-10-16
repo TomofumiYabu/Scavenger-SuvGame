@@ -47,40 +47,31 @@ describe("eight data-driven items and exact capacity", () => {
     expect(act(signal, { type: "signal" })).toMatchObject({ status: "won", inventory: { scrap: 0 } });
   });
 
-  it.each(["quick", "careful"] as const)("accepts exactly24 and rejects25 atomically for %s search", mode => {
-    const state = at(); const action: Action = { type: "search", mode };
-    const rewardLoad = assessAction(state, action).loadChange;
-    state.inventory.coffee = 24 - Number(rewardLoad);
-    expect(assessAction(state, action)).toMatchObject({ allowed: true, loadAfter: 24n });
-    const next = act(state, action); expect(inventoryLoad(next.inventory)).toBe(24n);
+  it.each(["quick", "careful"] as const)("search leaves %s loot on the ground even at full capacity", mode => {
+    const state = at(); state.inventory.coffee = 24;
+    const action: Action = { type: "search", mode };
+    expect(assessAction(state, action)).toMatchObject({ allowed: true, loadChange: 0n, loadAfter: 24n, rewards: {} });
+    const next = act(state, action);
+    expect(next.inventory).toEqual(state.inventory);
+    expect(next.ground[state.position]).toEqual(assessAction(state, action).groundRewards);
     expect(next.searched).toEqual([state.position]);
     expect(act(deserialize(JSON.stringify(next))!, action).searched).toEqual([state.position]);
-    state.inventory.coffee++;
-    const before = structuredClone(state);
-    expect(assessAction(state, action)).toMatchObject({ allowed: false, loadAfter: 25n });
-    expect(assessAction(state, action).reasons.join()).toContain("容量が足りません");
-    expect(act(state, action)).toBe(state); expect(state).toEqual(before);
-    const used = act(state, { type: "use", item: "coffee" });
-    expect(assessAction(used, action).allowed).toBe(true);
-    expect(inventoryLoad(act(used, action).inventory)).toBe(24n);
+    expect(act(next, { type: "pickup", item: "scrap", quantity: 1 })).toBe(next);
   });
 
-  it("keeps event pending on capacity rejection/reload, then leaves or uses supplies", () => {
-    for (const [terrain, id, choice, capacity] of [
-      ["ruins", "collapsed-cache", "safe", 4], ["ruins", "collapsed-cache", "deep", 6], ["clinic", "clinic-supplies", "pack", 2],
+  it("event rewards stay on the ground independently of backpack capacity", () => {
+    for (const [terrain, id, choice] of [
+      ["ruins", "collapsed-cache", "safe"], ["ruins", "collapsed-cache", "deep"], ["clinic", "clinic-supplies", "pack"],
     ] as const) {
-      const state = at(terrain); state.pendingEvent = { id, tile: state.position }; state.inventory.coffee = 24 - capacity;
+      const state = at(terrain); state.pendingEvent = { id, tile: state.position }; state.inventory.coffee = 25;
       const action = choose(state, choice);
-      expect(inventoryLoad(act(state, action).inventory)).toBe(24n);
-      state.inventory.coffee++;
-      expect(assessAction(state, action)).toMatchObject({ allowed: false, loadAfter: 25n });
-      expect(act(state, action)).toBe(state);
-      const reloaded = deserialize(JSON.stringify(state))!; expect(reloaded).toEqual(state);
-      expect(act(reloaded, action)).toBe(reloaded);
-      expect(act(reloaded, { type: "use", item: "coffee" })).toBe(reloaded);
-      const left = act(reloaded, choose(reloaded, "leave"));
-      expect(left).toMatchObject({ pendingEvent: null, turn: state.turn, rng: state.rng, inventory: state.inventory, log: expect.any(Array) });
-      expect(act(left, { type: "use", item: "coffee" }).inventory.coffee).toBe(state.inventory.coffee - 1);
+      expect(assessAction(state, action)).toMatchObject({ allowed: true, loadAfter: 25n, rewards: {} });
+      expect(act(state, { type: "drop", item: "coffee", quantity: 1 })).toBe(state);
+      const next = act(deserialize(JSON.stringify(state))!, action);
+      expect(next.inventory).toEqual(state.inventory);
+      expect(next.ground[state.position]).toEqual(assessAction(state, action).groundRewards);
+      expect(next.pendingEvent).toBeNull();
+      expect(act(next, action)).toBe(next);
     }
     const clinic = at("clinic"); clinic.pendingEvent = { id: "clinic-supplies", tile: clinic.position }; clinic.inventory.water = 20;
     expect(assessAction(clinic, choose(clinic, "treat"))).toMatchObject({ allowed: true, load: 40n, loadAfter: 38n, loadChange: -2n });
@@ -95,8 +86,8 @@ describe("eight data-driven items and exact capacity", () => {
     const exact = BigInt(Number.MAX_SAFE_INTEGER) * 14n;
     expect(inventoryLoad(state.inventory)).toBe(exact);
     expect(deserialize(JSON.stringify(state))).toEqual(state);
-    expect(assessAction(state, search)).toMatchObject({ allowed: false, load: exact, loadAfter: exact + 2n });
-    expect(act(state, search)).toBe(state);
+    expect(assessAction(state, search)).toMatchObject({ allowed: true, load: exact, loadAfter: exact });
+    expect(act(state, search).inventory).toEqual(state.inventory);
     for (const action of [{ type: "rest" }, { type: "move", target: neighbors(state.position)[0]! }, { type: "use", item: "water" }, { type: "signal" }] as Action[]) {
       expect(assessAction(state, action).allowed).toBe(true);
       expect(inventoryLoad(act(state, action).inventory)).toBeLessThanOrEqual(exact);

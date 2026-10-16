@@ -43,7 +43,8 @@ describe("探索と行動", () => {
   });
   it("探索収穫を一度だけ受け取り、2回目は時間も消費しない", () => {
     const s = act(newGame(), { type: "search" });
-    expect(s.inventory).toMatchObject({ food: 3, water: 3 });
+    expect(s.inventory).toEqual(newGame().inventory);
+    expect(s.ground[s.position]).toEqual({ food: 1, water: 1 });
     expect(s).toMatchObject({ turn: 1, energy: 75, hunger: 75, thirst: 74 });
     expect(act(s, { type: "search" })).toBe(s);
   });
@@ -93,7 +94,8 @@ describe("探索と行動", () => {
     const s = act(pending, { type: "choose", event: "collapsed-cache", tile: 29, choice: "leave" });
     const a = act(s, { type: "search" });
     expect(a).toEqual(act(structuredClone(s), { type: "search" }));
-    expect(a.inventory.scrap).toBe(2);
+    expect(a.inventory.scrap).toBe(0);
+    expect(a.ground[a.position]?.scrap).toBe(2);
     expect(a.rng).not.toBe(s.rng);
     expect([90, 100]).toContain(a.health);
   });
@@ -168,11 +170,15 @@ describe("勝敗と一連のプレイ", () => {
   it("初期状態から資源を管理し、実際の行動だけで脱出できる", () => {
     const route: Action[] = [
       { type: "search" },
+      { type: "pickup", item: "food", quantity: 1 },
+      { type: "pickup", item: "water", quantity: 1 },
       { type: "move", target: 29 },
       { type: "choose", event: "collapsed-cache", tile: 29, choice: "leave" },
       { type: "search" },
+      { type: "pickup", item: "scrap", quantity: 2 },
       { type: "move", target: 30 },
       { type: "search" },
+      { type: "pickup", item: "scrap", quantity: 1 },
       { type: "use", item: "water" },
       { type: "use", item: "food" },
       { type: "rest" },

@@ -40,7 +40,7 @@ for (const width of [320, 390, 1280]) for (const mode of ["quick", "careful"] as
     await expect(quick).toBeDisabled(); await expect(careful).toBeDisabled();
     const explanation = page.locator(`#guide-search-${mode}`);
     await expect(explanation).toBeFocused();
-    await expect(explanation).toContainText("もう物資がありません");
+    await expect(explanation).toContainText("これ以上は探せません");
     expect(await button.evaluate(element => element === (window as Window & { searchButton?: Element }).searchButton)).toBe(true);
     expect(Math.abs(await page.evaluate(() => scrollY) - y)).toBeLessThan(3);
     const expected = act(state, { type: "search", mode });

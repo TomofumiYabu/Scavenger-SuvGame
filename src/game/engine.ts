@@ -16,7 +16,7 @@ function note(state: GameState, text: string, kind: LogKind = "info"): void {
 export function newGame(): GameState {
   return {
     version: 2,
-    contentVersion: 3,
+    contentVersion: 4,
     pendingEvent: null,
     resolvedEvents: [],
     turn: 0,
@@ -26,6 +26,7 @@ export function newGame(): GameState {
     thirst: 80,
     energy: 85,
     inventory: { water: 2, food: 2, bandage: 1, scrap: 0, snack: 0, electrolyte: 0, medkit: 0, coffee: 0 },
+    ground: {},
     discovered: [START, ...neighbors(START)],
     searched: [],
     rng: 2026,
@@ -71,18 +72,29 @@ export function act(previous: GameState, action: Action): GameState {
     }
     case "search": {
       state.searched.push(state.position);
-      const found = terms.rewards;
+      const found = terms.groundRewards;
       const descriptions: string[] = [];
       for (const item of Object.keys(found) as Item[]) {
         const count = found[item]!;
         descriptions.push(`${ITEM_NAMES[item]} ×${count}`);
       }
-      note(state, `${action.mode === "careful" ? "慎重に探し、" : ""}${descriptions.join("、")}を見つけた。`, "good");
+      note(state, `${action.mode === "careful" ? "慎重に探し、" : ""}${descriptions.join("、")}を見つけ、地面にまとめた。拾う物を選べる。`, "good");
       if (injuryDamage) {
         note(state, "崩れた足場で負傷した。体力 −10。", "danger");
       }
       break;
     }
+    case "pickup": {
+      const ground = state.ground[state.position]!;
+      ground[action.item] = ground[action.item]! - action.quantity;
+      if (ground[action.item] === 0) delete ground[action.item];
+      if (Object.keys(ground).length === 0) delete state.ground[state.position];
+      note(state, `${ITEM_NAMES[action.item]} ×${action.quantity}を拾い、バックパックへ入れた。`, "good");
+      break;
+    }
+    case "drop":
+      note(state, `${ITEM_NAMES[action.item]} ×${action.quantity}を現在地の地面に置いた。`);
+      break;
     case "rest": {
       const sheltered = tileAt(state.position).terrain === "shelter";
       note(
@@ -126,6 +138,10 @@ export function act(previous: GameState, action: Action): GameState {
   const { after, depletion } = projectStats(previous, terms, injuryDamage);
   Object.assign(state, after);
   for (const [item, count] of Object.entries(terms.rewards) as [Item, number][]) state.inventory[item] += count;
+  for (const [item, count] of Object.entries(terms.groundRewards) as [Item, number][]) {
+    const ground = state.ground[state.position] ??= {};
+    ground[item] = (ground[item] ?? 0) + count;
+  }
   if (depletion.hunger > 0) {
     note(state, `空腹で力が入らない。体力 −${depletion.hunger}。`, "danger");
   }

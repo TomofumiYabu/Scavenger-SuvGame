@@ -20,15 +20,15 @@ describe("備蓄庫の選択", () => {
   });
   it("入口の回収は表示どおりの費用と収穫で、乱数を使わない", () => {
     const state = entry(); const next = act(state, choose("safe"));
-    expect(next).toMatchObject({ turn: 2, energy: 75, hunger: 74, thirst: 72, rng: state.rng, inventory: { water: 3, food: 3 }, pendingEvent: null, resolvedEvents: [EVENT_ID] });
-    expect(assessAction(state, choose("safe"))).toMatchObject({ hours: 1, rewards: { water: 1, food: 1 }, costs: { energy: 4, hunger: 3, thirst: 4 } });
+    expect(next).toMatchObject({ turn: 2, energy: 75, hunger: 74, thirst: 72, rng: state.rng, inventory: state.inventory, ground: { [state.position]: { water: 1, food: 1 } }, pendingEvent: null, resolvedEvents: [EVENT_ID] });
+    expect(assessAction(state, choose("safe"))).toMatchObject({ hours: 1, rewards: {}, groundRewards: { water: 1, food: 1 }, costs: { energy: 4, hunger: 3, thirst: 4 } });
   });
   it("奥の回収は選択確定時だけ抽選し、再読込と同じ選択で再現する", () => {
     const state = { ...entry(), rng: 0 }; const before = structuredClone(state);
     assessAction(state, choose("deep")); expect(state).toEqual(before);
     const next = act(state, choose("deep"));
     expect(next).toEqual(act(deserialize(JSON.stringify(state))!, choose("deep")));
-    expect(next).toMatchObject({ turn: 2, health: 100, energy: 67, hunger: 72, thirst: 70, inventory: { scrap: 2, water: 3 } });
+    expect(next).toMatchObject({ turn: 2, health: 100, energy: 67, hunger: 72, thirst: 70, inventory: state.inventory, ground: { [state.position]: { scrap: 2, water: 1 } } });
     expect(next.rng).not.toBe(state.rng);
     expect(act({ ...state, rng: 1 }, choose("deep")).health).toBe(90);
   });
@@ -60,12 +60,12 @@ describe("備蓄庫の選択", () => {
     expect(deserialize(JSON.stringify({ ...entry(), ...override }))).toBeNull();
   });
   it("未知の内容は非対応として保護する", () => {
-    for (const override of [{ contentVersion: 4 }, { version: 3 }, { pendingEvent: { id: "future", tile: 29 } }, { resolvedEvents: ["future"] }]) expect(decodeSave(JSON.stringify({ ...entry(), ...override })).kind).toBe("unsupported");
+    for (const override of [{ contentVersion: 5 }, { version: 3 }, { pendingEvent: { id: "future", tile: 29 } }, { resolvedEvents: ["future"] }]) expect(decodeSave(JSON.stringify({ ...entry(), ...override })).kind).toBe("unsupported");
   });
 });
 
 it("数値の安全な上限では収穫を拒否しても立ち去れる", () => {
-  const state = entry(); state.inventory.water = Number.MAX_SAFE_INTEGER;
+  const state = entry(); state.ground[state.position] = { water: Number.MAX_SAFE_INTEGER };
   expect(act(state, choose("safe"))).toBe(state); expect(act(state, choose("deep"))).toBe(state);
   expect(act(state, choose("leave"))).not.toBe(state);
 });
