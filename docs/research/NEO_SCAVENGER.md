@@ -3,9 +3,11 @@
 ## 状態と範囲
 
 - 調査対象として依頼された出典: [NEO Scavenger Wiki](https://neoscavenger.fandom.com/wiki/NEO_Scavenger_Wiki)
-- 取得状況: 対象ページへの HTTP GET と MediaWiki API リクエストはいずれもプロキシの `CONNECT 403` で失敗。
+- 取得状況（2026-10-16）: Wiki の index への TLS 検証を有効にした `curl` と、`api.php?action=parse&page=Scavenging&prop=text&format=json` の両方でプロキシ `CONNECT` は `HTTP/1.1 200 OK`。続く HTTP/2 応答はどちらも `402` で、API 応答本文は `{"message":"Please contact the site owner for access."}`。
+- 以前の `CONNECT 403` は今回の再試行では再現しなかった。`402` の応答元レイヤーは特定できておらず、Wiki運営元からの応答とも、支払いが必要とも断定しない。
+- ユーザー提供のスクリーンショットで `neoscavenger.fandom.com` の許可先登録を確認済み。現在の証拠から追加の許可先変更は不要。
 - 出典本文は読めていない。このメモに Wiki の仕様、ゲーム内ルール、数値バランスに関する調査結果はない。
-- Cloud のネットワーク設定ドラフトには `neoscavenger.fandom.com` が登録済みで、実行環境への適用待ち。適用後に取得を再試行し、ページ名と確認日を記録する。
+- Wiki本文を取得できていないため、AL-024の調査はアクセス制限で保留中。
 - Wiki が参照できるまで、以下は調査項目と記録用の空欄であり、調査完了の報告には使わない。
 
 ## 調べる問い
