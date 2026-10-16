@@ -304,7 +304,7 @@ for (const width of [320, 390]) test(`備蓄庫の選択と再読込・キーボ
   await expect(page.getByTestId("item-water")).toHaveText("×3");
   await page.reload(); await expect(title).toHaveCount(0);
   await expect(page.getByTestId("remaining")).toHaveText("46");
-  await move(page, "B6"); await move(page, "B5"); await expect(title).toHaveCount(0);
+  await move(page, "B6"); await page.getByRole("button", { name: "何もせず立ち去る" }).click(); await move(page, "B5"); await expect(title).toHaveCount(0);
 });
 
 test("未来の主保存は旧保存があっても保護し、通常プレイと再読込で原文を変えない", async ({ page }) => {
@@ -386,4 +386,86 @@ test("原文を退避できないリセットは元の保存を置き換えな�
   await expect(page.getByRole("status")).toContainText("保存の切り替えを確認できませんでした");
   await page.getByRole("button", { name: "周囲を探索する" }).click();
   expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBe(original);
+});
+
+test.describe("診療所・避難所の選択", () => {
+  test.use({ hasTouch: true });
+  for (const width of [320, 390, 1280]) {
+    for (const event of ["clinic", "shelter"] as const) {
+      test(`${event}の選択・結果・保存とフォーカスが${width}pxで使える`, async ({ page }) => {
+        const saved = newGame(); saved.position = event === "clinic" ? 39 : 37;
+        saved.discovered = [saved.position]; saved.health = 95; saved.hunger = 90; saved.thirst = 90; saved.energy = 95;
+        await page.setViewportSize({ width, height: 900 });
+        await page.addInitScript(saved => {
+          if (!localStorage.getItem("afterlight.save.v2")) localStorage.setItem("afterlight.save.v2", JSON.stringify(saved));
+        }, saved);
+        await page.goto("/");
+        await move(page, event === "clinic" ? "F6" : "B6");
+        const title = page.getByRole("heading", { name: event === "clinic" ? "残された処置台" : "消えかけの火" });
+        await expect(title).toBeFocused();
+        await expect(page.getByRole("button", { name: "休息する" })).toBeDisabled();
+        await expect(page.getByRole("button", { name: "飲料水を使う" })).toHaveAccessibleDescription(/出来事の選択を先に/);
+        const choice = event === "clinic"
+          ? width === 1280 ? "包帯をまとめて持ち出す" : "持ち水で傷を洗い処置する"
+          : width === 320 ? "食料と水を温めて食べる" : "火のそばで眠る";
+        const button = page.getByRole("button", { name: choice });
+        if (choice === "持ち水で傷を洗い処置する") await expect(button).toHaveAccessibleDescription(/飲料水 1個を消費.*気力 −4.*体力 \+35（実回復 \+5）/);
+        if (choice === "食料と水を温めて食べる") await expect(button).toHaveAccessibleDescription(/保存食 1個を消費.*飲料水 1個を消費.*満腹度 \+50（実回復 \+13）.*水分 \+35（実回復 \+14）/);
+        if (choice === "火のそばで眠る") await expect(button).toHaveAccessibleDescription(/満腹度 −8.*水分 −10.*気力 \+55（実回復 \+11）.*体力 \+12（実回復 \+5）/);
+        await page.reload(); await expect(title).toBeFocused();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        const boxes = await page.locator(".event-choice").evaluateAll(elements => elements.every(element => {
+          const box = element.getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth && element.scrollWidth <= element.clientWidth;
+        }));
+        expect(boxes).toBe(true);
+        await page.screenshot({ path: `test-results/${event}-${width}.png`, fullPage: true });
+        if (width === 320) await button.tap(); else { await button.focus(); await page.keyboard.press("Enter"); }
+        await expect(page.getByRole("heading", { name: "探索の記録" })).toBeFocused();
+        await expect(title).toHaveCount(0);
+        await expect(page.getByTestId("remaining")).toHaveText("46");
+        if (choice === "包帯をまとめて持ち出す") {
+          await expect(page.getByTestId("item-bandage")).toHaveText("×3");
+          await expect(page.getByTestId("health")).toHaveText("95 / 100");
+        } else if (event === "clinic") {
+          await expect(page.getByTestId("health")).toHaveText("100 / 100");
+          await expect(page.getByTestId("item-water")).toHaveText("×1");
+          await expect(page.getByText(/1時間。体力 \+5（上限100）/)).toBeVisible();
+        } else if (choice === "食料と水を温めて食べる") {
+          await expect(page.getByTestId("hunger")).toHaveText("97 / 100");
+          await expect(page.getByTestId("thirst")).toHaveText("96 / 100");
+          await expect(page.getByTestId("item-food")).toHaveText("×1");
+        } else {
+          await expect(page.getByTestId("energy")).toHaveText("100 / 100");
+          await expect(page.getByTestId("health")).toHaveText("100 / 100");
+        }
+        await page.reload(); await expect(title).toHaveCount(0);
+        await expect(page.getByTestId("remaining")).toHaveText("46");
+        const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("afterlight.save.v2")!));
+        expect(stored.contentVersion).toBe(2); expect(stored.resolvedEvents).toContain(event === "clinic" ? "clinic-supplies" : "shelter-embers");
+      });
+    }
+  }
+});
+
+test("内容版1の選択待ちを引き継ぎ、初回保存前の原文退避と旧版バックアップ復旧を確認する", async ({ page }) => {
+  const saved = newGame(); saved.position = 29; saved.turn = 8; saved.discovered = [...new Set([...saved.discovered, 29])];
+  saved.pendingEvent = { id: "collapsed-cache", tile: 29 };
+  const original = JSON.stringify({ ...saved, contentVersion: 1 }, null, 2);
+  await page.addInitScript(original => {
+    if (!localStorage.getItem("afterlight.save.v2")) localStorage.setItem("afterlight.save.v2", original);
+  }, original);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "崩れた備蓄庫" })).toBeFocused();
+  expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBe(original);
+  await page.getByRole("button", { name: "入口の箱を回収する" }).click();
+  expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2.original.0"))).toBe(original);
+  expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2.backup"))).toBe(original);
+  await page.getByText("保存の確認・復旧", { exact: true }).click();
+  await page.getByRole("button", { name: "ひとつ前の保存に戻す" }).click();
+  await page.getByRole("button", { name: "保存を戻す", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "崩れた備蓄庫" })).toBeFocused();
+  await expect(page.getByTestId("remaining")).toHaveText("40");
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "崩れた備蓄庫" })).toBeFocused();
+  expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2.original.0"))).toBe(original);
 });

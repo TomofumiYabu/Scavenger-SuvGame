@@ -1,5 +1,5 @@
-import { cacheChoice } from "./events";
-import { EVENT_ID, ITEM_NAMES, MAX_TURNS, TOWER, neighbors, tileAt } from "./model";
+import { eventChoice, eventById } from "./events";
+import { ITEM_NAMES, MAX_TURNS, TOWER, neighbors, tileAt } from "./model";
 import type { Action, GameState, Item, Terrain } from "./model";
 
 export type Stat = "health" | "hunger" | "thirst" | "energy";
@@ -38,8 +38,8 @@ export function actionTerms(state: GameState, action: Action): ActionTerms {
       break;
     case "signal": terms.supplies.scrap = 3; break;
     case "choose":
-      { const choice = cacheChoice(action.choice);
-        if (choice) { terms.hours = choice.hours; terms.costs = { ...choice.costs }; terms.rewards = { ...choice.rewards }; }
+      { const choice = eventChoice(action.event, action.choice);
+        if (choice) { terms.hours = choice.hours; terms.costs = { ...choice.costs }; terms.rewards = { ...choice.rewards }; terms.recovery = { ...choice.recovery }; terms.supplies = { ...choice.supplies }; }
       }
       break;
   }
@@ -60,11 +60,11 @@ export function assessAction(state: GameState, action: Action): ActionAssessment
   if (state.status !== "active") reasons.push("探索は終了しています。新しい探索を始めてください");
   else {
     if (action.type === "choose") {
-      if (!state.pendingEvent || action.event !== EVENT_ID || action.event !== state.pendingEvent.id || action.tile !== state.pendingEvent.tile || !cacheChoice(action.choice)) reasons.push("この選択はもう実行できません");
-    } else if (state.pendingEvent) reasons.push("備蓄庫での選択を先に決めてください。立ち去ることもできます");
+      if (!state.pendingEvent || action.event !== state.pendingEvent.id || action.tile !== state.pendingEvent.tile || action.tile !== state.position || eventById(action.event)?.terrain !== tileAt(state.position).terrain || state.resolvedEvents.includes(action.event) || !eventChoice(action.event, action.choice)) reasons.push("この選択はもう実行できません");
+    } else if (state.pendingEvent) reasons.push("出来事の選択を先に決めてください。立ち去ることもできます");
     if (action.type === "move" && !neighbors(state.position).includes(action.target)) reasons.push("隣接する地点から移動してください");
     if (action.type === "search" && state.searched.includes(state.position)) reasons.push("ここにはもう物資がありません");
-    if (state.energy < (terms.costs.energy ?? 0)) reasons.push(`気力が足りません（必要 ${terms.costs.energy}）。現在地で休息してください`);
+    if (state.energy < (terms.costs.energy ?? 0)) reasons.push(`気力が足りません（必要 ${terms.costs.energy}）${state.pendingEvent ? "。立ち去ることもできます" : "。現在地で休息してください"}`);
     if (action.type === "use" && action.item === "scrap") reasons.push("スクラップは通信塔の送信機に使います");
     for (const [item, count] of Object.entries(terms.supplies) as [Item, number][]) {
       if (state.inventory[item] < count) reasons.push(`${ITEM_NAMES[item]}が足りません（必要 ${count}個 / 所持 ${state.inventory[item]}個）`);
@@ -84,7 +84,7 @@ export function assessAction(state: GameState, action: Action): ActionAssessment
         after.health = cap(after.health - STARVATION_DAMAGE);
       }
     }
-    const ruins = (action.type === "search" && tileAt(state.position).terrain === "ruins") || (action.type === "choose" && !!cacheChoice(action.choice)?.injury);
+    const ruins = (action.type === "search" && tileAt(state.position).terrain === "ruins") || (action.type === "choose" && !!eventChoice(action.event, action.choice)?.injury);
     if (ruins) risks.push(`崩れた足場で負傷する可能性（体力 −${RUINS_DAMAGE}）`);
     if (after.health === 0) risks.push(action.type === "signal" ? "この行動で体力が尽きます。送信しても脱出できません" : "この行動で体力が尽きます");
     else if (ruins && after.health <= RUINS_DAMAGE) risks.push("負傷すると体力が尽きる可能性があります");

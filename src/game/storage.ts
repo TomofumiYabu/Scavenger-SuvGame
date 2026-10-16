@@ -38,6 +38,14 @@ export class SaveStore {
     const storage = this.access(); storage.setItem(key, raw);
     if (storage.getItem(key) !== raw) throw new Error("Storage verification failed");
   }
+  private archive(raw: string, reuse = false): void {
+    let index = 0;
+    while (this.access().getItem(`${ARCHIVE_PREFIX}${index}`) !== null) {
+      if (reuse && this.access().getItem(`${ARCHIVE_PREFIX}${index}`) === raw) return;
+      index++;
+    }
+    this.verifiedWrite(`${ARCHIVE_PREFIX}${index}`, raw);
+  }
   save(state: GameState): boolean {
     if (this.mode === "protected") return false;
     if (this.mode === "unavailable") return this.fail();
@@ -45,16 +53,18 @@ export class SaveStore {
       const raw = JSON.stringify(state);
       if (decodeSave(raw).kind !== "valid") return this.fail("今回の進行を保存できませんでした。元の保存を保護し、画面上だけで続けます。");
       const current = this.access().getItem(SAVE_KEY);
-      if (current !== this.expected || current !== null && decodeSave(current).kind !== "valid") {
+      if (current !== this.expected || current !== null && !("state" in decodeSave(current))) {
         this.mode = "protected"; this.message = "保存データが別の画面で変更されたため保護しました。再読込して確認してください。今回の探索は保存されません。"; return false;
       }
+      // Keep the exact old catalog raw permanently before rotating ordinary backups.
+      if (current !== null && decodeSave(current).kind === "migrated") this.archive(current, true);
       if (current !== null) this.verifiedWrite(BACKUP_KEY, current);
       else if (this.migratedSnapshot !== null) this.verifiedWrite(BACKUP_KEY, this.migratedSnapshot);
       this.verifiedWrite(SAVE_KEY, raw); this.expected = raw; return true;
     } catch { return this.fail(); }
   }
   backup(): GameState | null {
-    try { const raw = this.access().getItem(BACKUP_KEY); if (!raw) return null; const result = decodeSave(raw); return result.kind === "valid" ? result.state : null; } catch { return null; }
+    try { const raw = this.access().getItem(BACKUP_KEY); if (!raw) return null; const result = decodeSave(raw); return "state" in result ? result.state : null; } catch { return null; }
   }
   /** Explicit reset/restore archives the actual primary first, never deleting archives or v1. */
   replace(state: GameState): boolean {
@@ -64,9 +74,7 @@ export class SaveStore {
       const current = this.access().getItem(SAVE_KEY);
       const source = current ?? (this.legacyProtected ? this.access().getItem(LEGACY_SAVE_KEY) : null);
       if (source !== null) {
-        let index = 0;
-        while (this.access().getItem(`${ARCHIVE_PREFIX}${index}`) !== null) index++;
-        this.verifiedWrite(`${ARCHIVE_PREFIX}${index}`, source);
+        this.archive(source);
       }
       this.verifiedWrite(SAVE_KEY, raw); this.expected = raw;
       this.mode = "ready"; this.legacyProtected = false;

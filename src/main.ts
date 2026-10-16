@@ -1,4 +1,4 @@
-import { CACHE_EVENT } from "./game/events";
+import { eventById } from "./game/events";
 import { assessAction } from "./game/actions";
 import type { Stat } from "./game/actions";
 import "./style.css";
@@ -8,14 +8,13 @@ import {
   coordinates,
   ITEM_NAMES,
   MAX_TURNS,
-  EVENT_ID,
   TERRAIN,
   TILES,
   TOWER,
   neighbors,
   tileAt,
 } from "./game/model";
-import type { Action, ChoiceId, Item } from "./game/model";
+import type { Action, ChoiceId, EventId, Item } from "./game/model";
 import { SaveStore } from "./game/storage";
 import { icon } from "./icons";
 
@@ -38,7 +37,7 @@ app.innerHTML = `
   <dialog id="help-dialog" aria-labelledby="help-title">
     <span class="eyebrow">FIELD MANUAL / 01</span><h2 id="help-title">この街で、生き延びる。</h2>
     <p>北東の通信塔へ向かい、<strong>スクラップ3個</strong>で救難信号を送ってください。残された時間は48時間です。</p>
-    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地を「探索」して水や食料を集めます。各地点は一度だけ探索できます。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。通常の行動は1時間かかります。廃墟で出来事に出会ったら、費用と危険を読んで選択してください。立ち去る選択は時間を使いません。</li><li>満腹度・水分が0だと体力が減ります。廃墟では負傷することもあります。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
+    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地を「探索」して水や食料を集めます。各地点は一度だけ探索できます。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。通常の行動は1時間かかります。廃墟・診療所・避難所で出来事に出会ったら、費用と危険を読んで選択してください。立ち去る選択は時間を使いません。</li><li>満腹度・水分が0だと体力が減ります。廃墟では負傷することもあります。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
     <p class="muted">進行状況はこのブラウザに自動保存されます。Tab と Enter、またはタップ・クリックで操作できます。</p>
     <form method="dialog"><button class="button primary">探索に戻る ${icon("arrow")}</button></form>
   </dialog>
@@ -58,7 +57,8 @@ function recovery(): string {
 function eventPanel(): string {
   const pending = state.pendingEvent;
   if (!pending) return "";
-  return `<section class="event-panel panel" aria-labelledby="event-title"><span class="eyebrow">${coordinates(pending.tile)} / 発見</span><h2 id="event-title" tabindex="-1">${CACHE_EVENT.title}</h2><p>${CACHE_EVENT.story}</p><p>ここでどうするか、選んでください。判断する間は時間が進みません。</p><div class="event-choices">${CACHE_EVENT.choices.map(choice => {
+  const event = eventById(pending.id)!;
+  return `<section class="event-panel panel" aria-labelledby="event-title"><span class="eyebrow">${coordinates(pending.tile)} / 発見</span><h2 id="event-title" tabindex="-1">${event.title}</h2><p>${event.story}</p><p>ここでどうするか、選んでください。判断する間は時間が進みません。</p><div class="event-choices">${event.choices.map(choice => {
     const info = guidance({ type: "choose", event: pending.id, tile: pending.tile, choice: choice.id }, `guide-choice-${choice.id}`);
     return `<div class="event-choice"><p>${choice.detail}</p><button class="button ${choice.id === "leave" ? "secondary" : "primary"}" data-choice="${choice.id}" data-event="${pending.id}" data-event-tile="${pending.tile}" data-focus="choice-${choice.id}" ${info.disabled}>${choice.label}</button>${info.details}</div>`;
   }).join("")}</div></section>`;
@@ -218,7 +218,7 @@ app.addEventListener("click", (event) => {
     action = { type: command };
   if (button.dataset.item)
     action = { type: "use", item: button.dataset.item as Item };
-  if (button.dataset.choice) action = { type: "choose", event: button.dataset.event as typeof EVENT_ID, tile: Number(button.dataset.eventTile), choice: button.dataset.choice as ChoiceId };
+  if (button.dataset.choice) action = { type: "choose", event: button.dataset.event as EventId, tile: Number(button.dataset.eventTile), choice: button.dataset.choice as ChoiceId };
   if (!action) return;
   const next = act(state, action);
   if (next === state) return;

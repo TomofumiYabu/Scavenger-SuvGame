@@ -1,3 +1,4 @@
+import { eventById } from "./events";
 import { EVENT_ID, MAX_TURNS, SIZE, TOWER, neighbors, tileAt } from "./model";
 import type { GameState } from "./model";
 
@@ -20,13 +21,13 @@ export type SaveResult = { kind: "valid" | "migrated"; state: GameState } | { ki
 export function decodeSave(raw: string): SaveResult {
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { return { kind: "corrupt" }; }
-  if (record(parsed) && (parsed.version !== 1 && parsed.version !== 2 || parsed.version === 2 && parsed.contentVersion !== 1)) return { kind: "unsupported" };
+  if (record(parsed) && (parsed.version !== 1 && parsed.version !== 2 || parsed.version === 2 && (parsed.contentVersion !== 1 && parsed.contentVersion !== 2))) return { kind: "unsupported" };
   if (record(parsed) && parsed.version === 2) {
-    if (Array.isArray(parsed.resolvedEvents) && parsed.resolvedEvents.some(id => typeof id === "string" && id !== EVENT_ID)) return { kind: "unsupported" };
-    if (record(parsed.pendingEvent) && typeof parsed.pendingEvent.id === "string" && parsed.pendingEvent.id !== EVENT_ID) return { kind: "unsupported" };
+    if (Array.isArray(parsed.resolvedEvents) && parsed.resolvedEvents.some(id => typeof id === "string" && (!eventById(String(id)) || parsed.contentVersion === 1 && id !== EVENT_ID))) return { kind: "unsupported" };
+    if (record(parsed.pendingEvent) && typeof parsed.pendingEvent.id === "string" && (!eventById(parsed.pendingEvent.id) || parsed.contentVersion === 1 && parsed.pendingEvent.id !== EVENT_ID)) return { kind: "unsupported" };
   }
   const state = validate(raw);
-  return state ? { kind: record(parsed) && parsed.version === 1 ? "migrated" : "valid", state } : { kind: "corrupt" };
+  return state ? { kind: record(parsed) && (parsed.version === 1 || parsed.contentVersion === 1) ? "migrated" : "valid", state } : { kind: "corrupt" };
 }
 export function deserialize(raw: string): GameState | null {
   const result = decodeSave(raw);
@@ -84,9 +85,9 @@ function validate(raw: string): GameState | null {
     )
       return null;
     if (s.version === 2) {
-      if (s.contentVersion !== 1 || !Array.isArray(s.resolvedEvents) || s.resolvedEvents.length > 1 || s.resolvedEvents.some(id => id !== EVENT_ID)) return null;
+      if (![1, 2].includes(s.contentVersion as number) || !Array.isArray(s.resolvedEvents) || s.resolvedEvents.length > 3 || new Set(s.resolvedEvents).size !== s.resolvedEvents.length || s.resolvedEvents.some(id => typeof id !== "string" || !eventById(id) || s.contentVersion === 1 && id !== EVENT_ID)) return null;
       if (s.pendingEvent !== null) {
-        if (!record(s.pendingEvent) || s.pendingEvent.id !== EVENT_ID || !integer(s.pendingEvent.tile, 0, SIZE * SIZE - 1) || s.pendingEvent.tile !== s.position || tileAt(s.pendingEvent.tile).terrain !== "ruins" || s.status !== "active" || s.resolvedEvents.includes(EVENT_ID)) return null;
+        if (!record(s.pendingEvent) || typeof s.pendingEvent.id !== "string" || !eventById(s.pendingEvent.id) || s.contentVersion === 1 && s.pendingEvent.id !== EVENT_ID || !integer(s.pendingEvent.tile, 0, SIZE * SIZE - 1) || s.pendingEvent.tile !== s.position || tileAt(s.pendingEvent.tile).terrain !== eventById(s.pendingEvent.id)?.terrain || s.status !== "active" || s.resolvedEvents.includes(s.pendingEvent.id)) return null;
       }
     }
     // All fields used by the application were checked above. Never trust arbitrary saved HTML.
@@ -94,7 +95,7 @@ function validate(raw: string): GameState | null {
     // hex ring for square-grid saves, without inferring an unavailable route.
     return {
       ...s,
-      version: 2, contentVersion: 1,
+      version: 2, contentVersion: 2,
       pendingEvent: s.version === 1 ? null : s.pendingEvent,
       resolvedEvents: s.version === 1 ? [] : s.resolvedEvents,
       discovered: [...new Set([...s.discovered, ...neighbors(s.position)])],

@@ -1,7 +1,6 @@
-import { cacheChoice } from "./events";
+import { eventChoice, eventForTerrain } from "./events";
 import { actionTerms, assessAction, cap, RUINS_DAMAGE, STARVATION_DAMAGE } from "./actions";
 import {
-  EVENT_ID,
   ITEM_NAMES,
   MAX_TURNS,
   START,
@@ -17,7 +16,7 @@ function note(state: GameState, text: string, kind: LogKind = "info"): void {
 export function newGame(): GameState {
   return {
     version: 2,
-    contentVersion: 1,
+    contentVersion: 2,
     pendingEvent: null,
     resolvedEvents: [],
     turn: 0,
@@ -103,8 +102,14 @@ export function act(previous: GameState, action: Action): GameState {
     case "choose": {
       state.pendingEvent = null;
       state.resolvedEvents.push(action.event);
-      const choice = cacheChoice(action.choice)!;
+      const choice = eventChoice(action.event, action.choice)!;
       note(state, choice.outcome, choice.id === "leave" ? "info" : "good");
+      if (action.event !== "collapsed-cache" && terms.hours > 0) {
+        const names = { health: "体力", hunger: "満腹度", thirst: "水分", energy: "気力" };
+        const recovery = Object.entries(terms.recovery).map(([key, amount]) => `${names[key as keyof typeof names]} +${Math.min(amount, 100 - previous[key as keyof typeof names])}（上限100）`);
+        const costs = Object.entries(terms.costs).map(([key, amount]) => `${names[key as keyof typeof names]} −${amount}`);
+        note(state, `${terms.hours}時間。${[...recovery, ...costs].join("、")}。`);
+      }
       if (choice.injury) {
         state.rng = (Math.imul(state.rng, 1664525) + 1013904223) >>> 0;
         if (state.rng % 3 === 0) { state.health = cap(state.health - RUINS_DAMAGE); note(state, "棚が崩れ、飛び散った破片で負傷した。体力 −10。", "danger"); }
@@ -140,9 +145,12 @@ export function act(previous: GameState, action: Action): GameState {
     note(state, "最後の救難電波が途絶えた。救助の機会を失った。", "danger");
   }
   if (state.status !== "active") state.pendingEvent = null;
-  else if (action.type === "move" && tileAt(state.position).terrain === "ruins" && !state.resolvedEvents.includes(EVENT_ID)) {
-    state.pendingEvent = { id: EVENT_ID, tile: state.position };
-    note(state, "崩れた備蓄庫を見つけた。入口には箱が、傾いた棚の奥には部品が見える。");
+  else if (action.type === "move") {
+    const event = eventForTerrain(tileAt(state.position).terrain);
+    if (event && !state.resolvedEvents.includes(event.id)) {
+      state.pendingEvent = { id: event.id, tile: state.position };
+      note(state, event.discovery);
+    }
   }
   return state;
 }

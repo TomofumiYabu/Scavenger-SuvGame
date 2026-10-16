@@ -43,7 +43,9 @@ describe("備蓄庫の選択", () => {
     const state = entry(); const next = act(state, choose("safe"));
     expect(act(next, choose("safe"))).toBe(next);
     expect(act(state, { ...choose("safe"), tile: 0 } as Action)).toBe(state);
-    const back = act(act(next, { type: "move", target: 36 }), { type: "move", target: 29 });
+    const shelter = act(next, { type: "move", target: 36 });
+    const left = act(shelter, { type: "choose", event: "shelter-embers", tile: 36, choice: "leave" });
+    const back = act(left, { type: "move", target: 29 });
     expect(back.pendingEvent).toBeNull();
   });
   it("最後の時間と死亡を通常と同じ順に解決し待機を残さない", () => {
@@ -58,7 +60,7 @@ describe("備蓄庫の選択", () => {
     expect(deserialize(JSON.stringify({ ...entry(), ...override }))).toBeNull();
   });
   it("未知の内容は非対応として保護する", () => {
-    for (const override of [{ contentVersion: 2 }, { version: 3 }, { pendingEvent: { id: "future", tile: 29 } }, { resolvedEvents: ["future"] }]) expect(decodeSave(JSON.stringify({ ...entry(), ...override })).kind).toBe("unsupported");
+    for (const override of [{ contentVersion: 3 }, { version: 3 }, { pendingEvent: { id: "future", tile: 29 } }, { resolvedEvents: ["future"] }]) expect(decodeSave(JSON.stringify({ ...entry(), ...override })).kind).toBe("unsupported");
   });
 });
 
