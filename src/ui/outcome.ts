@@ -28,7 +28,7 @@ function addedEntries(before: GameState, after: GameState): GameState["log"] {
 }
 
 export function eventOutcome(before: GameState, after: GameState, action: Extract<Action, { type: "choose" }>): Outcome {
-  const choice = eventChoice(action.event, action.choice)!;
+  const choice = eventChoice(action.event, action.choice, before.pendingEvent?.searchMode)!;
   return {
     event: eventById(action.event)!.title,
     choice: choice.label,

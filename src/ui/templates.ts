@@ -1,5 +1,5 @@
 import { ITEMS, ITEM_IDS, CAPACITY, inventoryLoad } from "../game/items";
-import { eventById } from "../game/events";
+import { eventById, eventChoice, eventForTerrain } from "../game/events";
 import { assessAction, SEARCH_METHODS } from "../game/actions";
 import type { Stat } from "../game/actions";
 import {
@@ -25,7 +25,7 @@ export const shell = `
   <dialog id="help-dialog" aria-labelledby="help-title">
     <span class="eyebrow">FIELD MANUAL / 01</span><h2 id="help-title">この街で、生き延びる。</h2>
     <p>北東の通信塔へ向かい、<strong>スクラップ3個</strong>で救難信号を送ってください。残された時間は48時間です。</p>
-    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地で「手早く探す」（1時間）か「慎重に探す」（2時間）を選びます。慎重な探索は負傷せず、主な物資を1個多く、地形ごとの追加物資も1個得ます。どちらか一度でその地点は探索済みになります。見つけた物資は地点に残るので、現在地の「地点に残した物」から必要な分を拾います。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。探索以外の通常行動は1時間です。廃墟・診療所・避難所で出来事に出会ったら、費用と危険を読んで選択してください。立ち去る選択は時間を使いません。</li><li>満腹度・水分が0の時間ごとに、それぞれ体力が12減ります。廃墟の手早い探索では負傷することもあります。</li><li>バックパックの容量は24です。容量は各物資に表示されます。探索・出来事で見つけた物資は地点に残ります。入る分だけ拾い、バックパックの「1個置く」で空きを作れます。拾う・置くは0時間。置いた物も残り、移動・再訪・再読込でも失われません。出来事の選択中や探索終了後は拾う・置くを行えません。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
+    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地で「手早く探す」（1時間）か「慎重に探す」（2時間）を選びます。慎重な探索は負傷せず、主な物資を1個多く、地形ごとの追加物資も1個得ます。どちらか一度でその地点は探索済みになります。見つけた物資は地点に残るので、現在地の「地点に残した物」から必要な分を拾います。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。探索以外の通常行動は1時間です。出来事は全6件です。廃墟・診療所・避難所では移動後、道路・緑地・通信塔では探索後に出会います（各1回）。探索後の出来事では探索方式で選択の費用・収穫が変わります。探索ボタンの予告を読み、出来事では費用と危険を確認してください。立ち去る選択は0時間・消費なしです。</li><li>満腹度・水分が0の時間ごとに、それぞれ体力が12減ります。廃墟の手早い探索では負傷することもあります。</li><li>バックパックの容量は24です。容量は各物資に表示されます。探索・出来事で見つけた物資は地点に残ります。入る分だけ拾い、バックパックの「1個置く」で空きを作れます。拾う・置くは0時間。置いた物も残り、移動・再訪・再読込でも失われません。出来事の選択中や探索終了後は拾う・置くを行えません。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
     <p class="muted">進行状況はこのブラウザに自動保存されます。Tab と Enter、またはタップ・クリックで操作できます。</p>
     <form method="dialog"><button class="button primary">探索に戻る ${icon("arrow")}</button></form>
   </dialog>
@@ -46,7 +46,8 @@ function eventPanel(): string {
   const pending = state.pendingEvent;
   if (!pending) return "";
   const event = eventById(pending.id)!;
-  return `<section class="event-panel panel" aria-labelledby="event-title"><span class="eyebrow">${coordinates(pending.tile)} / 発見</span><h2 id="event-title" tabindex="-1">${event.title}</h2><p>${event.story}</p><p>ここでどうするか、選んでください。判断する間は時間が進みません。</p><div class="event-choices">${event.choices.map(choice => {
+  return `<section class="event-panel panel" aria-labelledby="event-title"><span class="eyebrow">${coordinates(pending.tile)} / 発見</span><h2 id="event-title" tabindex="-1">${event.title}</h2><p>${event.story}</p>${pending.searchMode ? `<p class="event-search-context">現在地 ${coordinates(pending.tile)} で「${SEARCH_METHODS[pending.searchMode].label}」を実行済みです。探索の時間・消費は確定し、見つけた物資は地点に残っています。以下は追加の選択です。物資は選択後に拾えます。</p>` : ""}<p>ここでどうするか、選んでください。判断する間は時間が進みません。立ち去る選択は0時間・消費なしです。</p><div class="event-choices">${event.choices.map(raw => {
+    const choice = eventChoice(pending.id, raw.id, pending.searchMode)!;
     const info = guidance({ type: "choose", event: pending.id, tile: pending.tile, choice: choice.id }, `guide-choice-${choice.id}`);
     return `<div class="event-choice"><p>${choice.detail}</p><button class="button ${choice.id === "leave" ? "secondary" : "primary"}" data-choice="${choice.id}" data-event="${pending.id}" data-event-tile="${pending.tile}" data-focus="choice-${choice.id}" ${info.disabled}>${choice.label}</button>${info.details}</div>`;
   }).join("")}</div></section>`;
@@ -95,6 +96,9 @@ const statNames: Record<Stat, string> = { health: "体力", hunger: "満腹度",
 
 function guidance(action: Action, id: string): { disabled: string; details: string } {
   const assessment = assessAction(state, action);
+  const encounter = action.type === "search" ? eventForTerrain(tileAt(state.position).terrain, "search") : undefined;
+  const searchHint = encounter && !state.searched.includes(state.position) && !state.resolvedEvents.includes(encounter.id)
+    ? `<p class="action-effect search-encounter-hint">探索後、生存・時間内なら「${encounter.title}」に出会います。${encounter.searchHint ?? ""} 追加の時間・物資を使うかは選べます。立ち去る選択は0時間・消費なしです。</p>` : "";
   const costs = Object.entries(assessment.costs).map(([key, amount]) => `${statNames[key as Stat]} −${amount}`);
   const supplies = Object.entries(assessment.supplies).map(([key, amount]) => `${ITEM_NAMES[key as Item]} ${amount}個${action.type === "drop" ? "をバックパックから移す" : "を消費"}`);
   const groundRewards = Object.entries(assessment.groundRewards).map(([key, amount]) => `${ITEM_NAMES[key as Item]} +${amount}個`);
@@ -103,7 +107,7 @@ function guidance(action: Action, id: string): { disabled: string; details: stri
   const capacity = assessment.loadChange === 0n ? [] : [`容量 ${assessment.loadChange > 0n ? "+" : "−"}${assessment.loadChange < 0n ? -assessment.loadChange : assessment.loadChange}${assessment.loadAfter >= 0n ? `（${assessment.load} → ${assessment.loadAfter} / ${CAPACITY}）` : ""}`];
   return {
     disabled: `${assessment.allowed ? "" : "disabled"} aria-describedby="${id}"`,
-    details: `<div id="${id}" class="action-details" tabindex="-1"><p class="action-cost">${[`${assessment.hours}時間`, ...supplies, ...costs, ...capacity].join(" / ")}</p>${rewards.length ? `<p class="action-effect">バックパックへ：${rewards.join(" / ")}</p>` : ""}${groundRewards.length ? `<p class="action-effect">${action.type === "drop" ? "地点に置く" : "発見→地点に残る"}：${groundRewards.join(" / ")}</p>` : ""}${action.type === "search" ? `<p class="action-effect">探索による負傷：${assessment.injury ? `${assessment.injury.oneIn}分の1で体力 −${assessment.injury.damage}` : "0（なし）"}</p>` : ""}${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("")}${assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("")}</div>`,
+    details: `<div id="${id}" class="action-details" tabindex="-1"><p class="action-cost">${[`${assessment.hours}時間`, ...supplies, ...costs, ...capacity].join(" / ")}</p>${rewards.length ? `<p class="action-effect">バックパックへ：${rewards.join(" / ")}</p>` : ""}${groundRewards.length ? `<p class="action-effect">${action.type === "drop" ? "地点に置く" : "発見→地点に残る"}：${groundRewards.join(" / ")}</p>` : ""}${action.type === "search" ? `<p class="action-effect">探索による負傷：${assessment.injury ? `${assessment.injury.oneIn}分の1で体力 −${assessment.injury.damage}` : "0（なし）"}</p>` : ""}${searchHint}${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("")}${assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("")}</div>`,
   };
 }
 function actionButton(action: Action, label: string, glyph: string, style = "primary"): string {

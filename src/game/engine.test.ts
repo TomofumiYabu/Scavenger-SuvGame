@@ -178,6 +178,7 @@ describe("勝敗と一連のプレイ", () => {
       { type: "pickup", item: "scrap", quantity: 2 },
       { type: "move", target: 30 },
       { type: "search" },
+      { type: "choose", event: "delivery-van", tile: 30, choice: "leave" },
       { type: "pickup", item: "scrap", quantity: 1 },
       { type: "use", item: "water" },
       { type: "use", item: "food" },

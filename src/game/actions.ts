@@ -71,7 +71,7 @@ export function actionTerms(state: GameState, action: Action): ActionTerms {
       break;
     case "signal": terms.supplies.scrap = 3; break;
     case "choose":
-      { const choice = eventChoice(action.event, action.choice);
+      { const choice = eventChoice(action.event, action.choice, state.pendingEvent?.searchMode);
         if (choice) { terms.hours = choice.hours; terms.costs = { ...choice.costs }; terms.groundRewards = { ...choice.rewards }; terms.recovery = { ...choice.recovery }; terms.supplies = { ...choice.supplies }; if (choice.injury) { terms.injury = { oneIn: 3, damage: RUINS_DAMAGE }; terms.advanceRng = true; } }
       }
       break;
@@ -114,7 +114,7 @@ export function assessAction(state: GameState, action: Action): ActionAssessment
   if (state.status !== "active") reasons.push("探索は終了しています。新しい探索を始めてください");
   else {
     if (action.type === "choose") {
-      if (!state.pendingEvent || action.event !== state.pendingEvent.id || action.tile !== state.pendingEvent.tile || action.tile !== state.position || eventById(action.event)?.terrain !== tileAt(state.position).terrain || state.resolvedEvents.includes(action.event) || !eventChoice(action.event, action.choice)) reasons.push("この選択はもう実行できません");
+      if (!state.pendingEvent || action.event !== state.pendingEvent.id || action.tile !== state.pendingEvent.tile || action.tile !== state.position || eventById(action.event)?.terrain !== tileAt(state.position).terrain || state.resolvedEvents.includes(action.event) || !eventChoice(action.event, action.choice, state.pendingEvent?.searchMode)) reasons.push("この選択はもう実行できません");
     } else if (state.pendingEvent) reasons.push("出来事の選択を先に決めてください。立ち去ることもできます");
     if (action.type === "move" && !neighbors(state.position).includes(action.target)) reasons.push("隣接する地点から移動してください");
     if (action.type === "search" && state.searched.includes(state.position)) reasons.push("この地点は探索済みです。これ以上は探せません");

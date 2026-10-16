@@ -46,6 +46,8 @@ test("UIから資源を集めて脱出し、終了状態も保存する", async 
   await page.getByRole("button", { name: "スクラップの拾える分（2個）を拾う", exact: true }).click();
   await move(page, "C5");
   await page.getByRole("button", { name: "手早く探す" }).click();
+  await expect(page.locator("#event-title")).toHaveText("封じられた配送車");
+  await page.locator('[data-choice="leave"]').click();
   await page.getByRole("button", { name: "スクラップを1個拾う", exact: true }).click();
   await expect(page.getByTestId("item-scrap")).toHaveText("×3");
   await page.getByRole("button", { name: "飲料水を使う" }).click();
@@ -122,6 +124,7 @@ test("スマートフォン幅で横スクロールせず移動と探索がで�
   ).toBe(true);
   await move(page, "C6");
   await page.getByRole("button", { name: "手早く探す" }).click();
+  await page.locator('[data-choice="leave"]').click();
   await expect(page.getByTestId("ground-scrap")).toHaveText("×1");
   await page.getByRole("button", { name: "スクラップを1個拾う", exact: true }).click();
   await expect(page.getByTestId("item-scrap")).toHaveText("×1");
@@ -454,7 +457,7 @@ test.describe("診療所・避難所の選択", () => {
         await page.reload(); await expect(title).toHaveCount(0);
         await expect(page.getByTestId("remaining")).toHaveText("46");
         const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("afterlight.save.v2")!));
-        expect(stored.contentVersion).toBe(4); expect(stored.resolvedEvents).toContain(event === "clinic" ? "clinic-supplies" : "shelter-embers");
+        expect(stored.contentVersion).toBe(5); expect(stored.resolvedEvents).toContain(event === "clinic" ? "clinic-supplies" : "shelter-embers");
       });
     }
   }

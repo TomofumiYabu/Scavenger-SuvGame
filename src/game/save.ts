@@ -1,5 +1,6 @@
 import { ITEM_IDS, LEGACY_ITEM_IDS } from "./items";
-import { eventById } from "./events";
+import { eventById, EVENTS } from "./events";
+import { isSearchMode } from "./actions";
 import { EVENT_ID, MAX_TURNS, SIZE, TOWER, neighbors, tileAt } from "./model";
 import type { GameState } from "./model";
 
@@ -16,28 +17,37 @@ const tileList = (value: unknown): value is number[] =>
   new Set(value).size === value.length &&
   value.every((id) => integer(id, 0, SIZE * SIZE - 1));
 
+const SUPPORTED_CONTENT = [1, 2, 3, 4, 5];
+const hasModernItems = (s: Record<string, unknown>): boolean => s.version === 2 && integer(s.contentVersion, 3, 5);
+const hasGround = (s: Record<string, unknown>): boolean => s.version === 2 && integer(s.contentVersion, 4, 5);
+// Content 1 knew only the cache; content 2–4 knew the original movement events.
+const ORIGINAL_EVENT_IDS = [EVENT_ID, "clinic-supplies", "shelter-embers"];
+const allowedEvents = (content: unknown) => EVENTS.filter(event => content === 5 || (content === 1 ? event.id === EVENT_ID : ORIGINAL_EVENT_IDS.includes(event.id)));
+const supportedEvent = (id: string, content: unknown): boolean => allowedEvents(content).some(event => event.id === id);
+
 export type SaveResult = { kind: "valid" | "migrated"; state: GameState } | { kind: "corrupt" | "unsupported" };
 
 /** Read-only classification. Never modifies storage or draws random numbers. */
 export function decodeSave(raw: string): SaveResult {
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { return { kind: "corrupt" }; }
-  if (record(parsed) && (parsed.version !== 1 && parsed.version !== 2 || parsed.version === 2 && (parsed.contentVersion !== 1 && parsed.contentVersion !== 2 && parsed.contentVersion !== 3 && parsed.contentVersion !== 4))) return { kind: "unsupported" };
+  if (record(parsed) && (parsed.version !== 1 && parsed.version !== 2 || parsed.version === 2 && !SUPPORTED_CONTENT.includes(parsed.contentVersion as number))) return { kind: "unsupported" };
   if (record(parsed) && parsed.version === 2) {
-    if (Array.isArray(parsed.resolvedEvents) && parsed.resolvedEvents.some(id => typeof id === "string" && (!eventById(String(id)) || parsed.contentVersion === 1 && id !== EVENT_ID))) return { kind: "unsupported" };
-    if (record(parsed.pendingEvent) && typeof parsed.pendingEvent.id === "string" && (!eventById(parsed.pendingEvent.id) || parsed.contentVersion === 1 && parsed.pendingEvent.id !== EVENT_ID)) return { kind: "unsupported" };
+    if (Array.isArray(parsed.resolvedEvents) && parsed.resolvedEvents.some(id => typeof id === "string" && !supportedEvent(id, parsed.contentVersion))) return { kind: "unsupported" };
+    if (record(parsed.pendingEvent) && typeof parsed.pendingEvent.id === "string" && !supportedEvent(parsed.pendingEvent.id, parsed.contentVersion)) return { kind: "unsupported" };
   }
+  if (record(parsed) && record(parsed.pendingEvent) && typeof parsed.pendingEvent.searchMode === "string" && !isSearchMode(parsed.pendingEvent.searchMode)) return { kind: "unsupported" };
   if (record(parsed) && record(parsed.inventory)) {
-    const known: readonly string[] = parsed.version === 2 && (parsed.contentVersion === 3 || parsed.contentVersion === 4) ? ITEM_IDS : LEGACY_ITEM_IDS;
+    const known: readonly string[] = hasModernItems(parsed) ? ITEM_IDS : LEGACY_ITEM_IDS;
     if (Object.keys(parsed.inventory).some(id => !known.includes(id))) return { kind: "unsupported" };
   }
-  if (record(parsed) && parsed.version === 2 && parsed.contentVersion === 4 && record(parsed.ground)) {
+  if (record(parsed) && hasGround(parsed) && record(parsed.ground)) {
     for (const pile of Object.values(parsed.ground)) {
       if (record(pile) && Object.keys(pile).some(id => !(ITEM_IDS as readonly string[]).includes(id))) return { kind: "unsupported" };
     }
   }
   const state = validate(raw);
-  return state ? { kind: record(parsed) && (parsed.version === 1 || parsed.contentVersion !== 4) ? "migrated" : "valid", state } : { kind: "corrupt" };
+  return state ? { kind: record(parsed) && (parsed.version === 1 || parsed.contentVersion !== 5) ? "migrated" : "valid", state } : { kind: "corrupt" };
 }
 export function deserialize(raw: string): GameState | null {
   const result = decodeSave(raw);
@@ -57,7 +67,7 @@ function validate(raw: string): GameState | null {
     for (const key of ["health", "hunger", "thirst", "energy"])
       if (!integer(s[key], 0, 100)) return null;
     if (!record(s.inventory)) return null;
-    for (const key of s.version === 2 && (s.contentVersion === 3 || s.contentVersion === 4) ? ITEM_IDS : LEGACY_ITEM_IDS)
+    for (const key of hasModernItems(s) ? ITEM_IDS : LEGACY_ITEM_IDS)
       if (!integer(s.inventory[key], 0, Number.MAX_SAFE_INTEGER)) return null;
     if (
       !tileList(s.discovered) ||
@@ -66,7 +76,7 @@ function validate(raw: string): GameState | null {
     )
       return null;
     const discovered = s.discovered;
-    if (s.version === 2 && s.contentVersion === 4) {
+    if (hasGround(s)) {
       if (!record(s.ground)) return null;
       for (const [key, pile] of Object.entries(s.ground)) {
         const id = Number(key);
@@ -105,9 +115,15 @@ function validate(raw: string): GameState | null {
     )
       return null;
     if (s.version === 2) {
-      if (![1, 2, 3, 4].includes(s.contentVersion as number) || !Array.isArray(s.resolvedEvents) || s.resolvedEvents.length > 3 || new Set(s.resolvedEvents).size !== s.resolvedEvents.length || s.resolvedEvents.some(id => typeof id !== "string" || !eventById(id) || s.contentVersion === 1 && id !== EVENT_ID)) return null;
+      if (!SUPPORTED_CONTENT.includes(s.contentVersion as number) || !Array.isArray(s.resolvedEvents) || s.resolvedEvents.length > allowedEvents(s.contentVersion).length || new Set(s.resolvedEvents).size !== s.resolvedEvents.length || s.resolvedEvents.some(id => typeof id !== "string" || !supportedEvent(id, s.contentVersion))) return null;
       if (s.pendingEvent !== null) {
-        if (!record(s.pendingEvent) || typeof s.pendingEvent.id !== "string" || !eventById(s.pendingEvent.id) || s.contentVersion === 1 && s.pendingEvent.id !== EVENT_ID || !integer(s.pendingEvent.tile, 0, SIZE * SIZE - 1) || s.pendingEvent.tile !== s.position || tileAt(s.pendingEvent.tile).terrain !== eventById(s.pendingEvent.id)?.terrain || s.status !== "active" || s.resolvedEvents.includes(s.pendingEvent.id)) return null;
+        const pending = s.pendingEvent;
+        if (!record(pending) || typeof pending.id !== "string" || !supportedEvent(pending.id, s.contentVersion) || !integer(pending.tile, 0, SIZE * SIZE - 1) || pending.tile !== s.position || s.status !== "active" || s.resolvedEvents.includes(pending.id)) return null;
+        const event = eventById(pending.id)!;
+        if (tileAt(pending.tile).terrain !== event.terrain) return null;
+        if (event.trigger === "search") {
+          if (!isSearchMode(pending.searchMode) || !s.searched.includes(pending.tile)) return null;
+        } else if ("searchMode" in pending) return null;
       }
     }
     // All fields used by the application were checked above. Never trust arbitrary saved HTML.
@@ -115,8 +131,8 @@ function validate(raw: string): GameState | null {
     // hex ring for square-grid saves, without inferring an unavailable route.
     return {
       ...s,
-      version: 2, contentVersion: 4,
-      ground: s.version === 2 && s.contentVersion === 4 ? s.ground : {},
+      version: 2, contentVersion: 5,
+      ground: hasGround(s) ? s.ground : {},
       inventory: { snack: 0, electrolyte: 0, medkit: 0, coffee: 0, ...s.inventory },
       pendingEvent: s.version === 1 ? null : s.pendingEvent,
       resolvedEvents: s.version === 1 ? [] : s.resolvedEvents,

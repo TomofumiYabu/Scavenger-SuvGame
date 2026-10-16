@@ -3,8 +3,8 @@ export const MAX_TURNS = 48;
 export const SAVE_KEY = "afterlight.save.v2";
 export const LEGACY_SAVE_KEY = "afterlight.save.v1";
 export const EVENT_ID = "collapsed-cache";
-export type EventId = typeof EVENT_ID | "clinic-supplies" | "shelter-embers";
-export type ChoiceId = "safe" | "deep" | "leave" | "treat" | "pack" | "meal" | "sleep";
+export type EventId = typeof EVENT_ID | "clinic-supplies" | "shelter-embers" | "delivery-van" | "rainwater-tank" | "backup-generator";
+export type ChoiceId = "safe" | "deep" | "leave" | "treat" | "pack" | "meal" | "sleep" | "wedge" | "probe" | "filter" | "draw" | "cool" | "unwire";
 export type Terrain =
   | "ruins"
   | "street"
@@ -26,8 +26,8 @@ export interface Tile {
 }
 export interface GameState {
   version: 2;
-  contentVersion: 4;
-  pendingEvent: { id: EventId; tile: number } | null;
+  contentVersion: 5;
+  pendingEvent: { id: EventId; tile: number; searchMode?: SearchMode } | null;
   resolvedEvents: EventId[];
   turn: number;
   position: number;

@@ -70,7 +70,8 @@ describe("two search methods", () => {
     expect(act(fragile, careful)).toMatchObject({ health: 10, status: "active", inventory: fragile.inventory, ground: { [fragile.position]: { scrap: 3, water: 1, snack: 1 } } });
     const lastChance = { ...at("tower"), turn: 46 };
     lastChance.inventory.scrap = 2;
-    const fast = act(lastChance, quick);
+    const found = act(lastChance, quick);
+    const fast = act(found, { type: "choose", event: "backup-generator", tile: found.position, choice: "leave" });
     expect(act(act(fast, { type: "pickup", item: "scrap", quantity: 1 }), { type: "signal" })).toMatchObject({ turn: 48, status: "won" });
     const slow = act(lastChance, careful);
     expect(slow).toMatchObject({ turn: 48, status: "lost", inventory: { scrap: 2 }, ground: { [lastChance.position]: { scrap: 2, coffee: 1 } } });

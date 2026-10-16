@@ -60,7 +60,7 @@ describe("備蓄庫の選択", () => {
     expect(deserialize(JSON.stringify({ ...entry(), ...override }))).toBeNull();
   });
   it("未知の内容は非対応として保護する", () => {
-    for (const override of [{ contentVersion: 5 }, { version: 3 }, { pendingEvent: { id: "future", tile: 29 } }, { resolvedEvents: ["future"] }]) expect(decodeSave(JSON.stringify({ ...entry(), ...override })).kind).toBe("unsupported");
+    for (const override of [{ contentVersion: 6 }, { version: 3 }, { pendingEvent: { id: "future", tile: 29 } }, { resolvedEvents: ["future"] }]) expect(decodeSave(JSON.stringify({ ...entry(), ...override })).kind).toBe("unsupported");
   });
 });
 

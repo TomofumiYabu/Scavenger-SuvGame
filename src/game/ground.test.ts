@@ -148,8 +148,8 @@ describe("ground saves and historical loot", () => {
 
   it("protects unknown ground item IDs and future formats", () => {
     for (const id of ["future", "constructor", "__proto__"]) expect(decodeSave(JSON.stringify({ ...newGame(), ground: { "36": { [id]: 1 } } })).kind).toBe("unsupported");
-    expect(decodeSave(JSON.stringify({ ...newGame(), contentVersion: 5 })).kind).toBe("unsupported");
+    expect(decodeSave(JSON.stringify({ ...newGame(), contentVersion: 6 })).kind).toBe("unsupported");
     const { coffee: _coffee, ...missing } = newGame().inventory;
-    for (const contentVersion of [3, 4]) expect(decodeSave(JSON.stringify({ ...newGame(), contentVersion, inventory: missing })).kind).toBe("corrupt");
+    for (const contentVersion of [3, 4, 5]) expect(decodeSave(JSON.stringify({ ...newGame(), contentVersion, inventory: missing })).kind).toBe("corrupt");
   });
 });

@@ -16,7 +16,7 @@ function note(state: GameState, text: string, kind: LogKind = "info"): void {
 export function newGame(): GameState {
   return {
     version: 2,
-    contentVersion: 4,
+    contentVersion: 5,
     pendingEvent: null,
     resolvedEvents: [],
     turn: 0,
@@ -115,7 +115,7 @@ export function act(previous: GameState, action: Action): GameState {
     case "choose": {
       state.pendingEvent = null;
       state.resolvedEvents.push(action.event);
-      const choice = eventChoice(action.event, action.choice)!;
+      const choice = eventChoice(action.event, action.choice, previous.pendingEvent?.searchMode)!;
       note(state, choice.outcome, choice.id === "leave" ? "info" : "good");
       if (action.event !== "collapsed-cache" && terms.hours > 0) {
         const names = { health: "体力", hunger: "満腹度", thirst: "水分", energy: "気力" };
@@ -158,10 +158,10 @@ export function act(previous: GameState, action: Action): GameState {
     note(state, "最後の救難電波が途絶えた。救助の機会を失った。", "danger");
   }
   if (state.status !== "active") state.pendingEvent = null;
-  else if (action.type === "move") {
-    const event = eventForTerrain(tileAt(state.position).terrain);
+  else if (action.type === "move" || action.type === "search") {
+    const event = eventForTerrain(tileAt(state.position).terrain, action.type);
     if (event && !state.resolvedEvents.includes(event.id)) {
-      state.pendingEvent = { id: event.id, tile: state.position };
+      state.pendingEvent = { id: event.id, tile: state.position, ...(action.type === "search" ? { searchMode: action.mode ?? "quick" } : {}) };
       note(state, event.discovery);
     }
   }

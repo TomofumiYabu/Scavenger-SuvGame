@@ -19,7 +19,8 @@ async function move(page: Page, tile: number) {
 
 for (const width of [320, 390, 1280]) test(`${width}pxで探索→現在地の物資→部分回収と一括回収を操作する`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });
-  const state = newGame(); state.position = 30; state.discovered = [30, ...neighbors(30)]; state.inventory.coffee = 12; // Load21, room3.
+  const state = newGame(); state.position = 30; state.discovered = [30, ...neighbors(30)]; state.resolvedEvents = ["delivery-van"]; // This fixture isolates ground/capacity behavior.
+  state.inventory.coffee = 12; // Load21, room3.
   await seed(page, state); await page.goto("/");
   await page.getByRole("button", { name: "慎重に探す", exact: true }).click();
   await expect(page.getByTestId("capacity")).toHaveText("容量 21 / 24");
@@ -151,7 +152,7 @@ test("内容版3から移行しても探索済みの収穫を複製しない", a
   await page.reload(); expect(await storage(page)).toEqual({ [key]: raw });
   await page.getByRole("button", { name: "飲料水をここに1個置く", exact: true }).click();
   const next = await saved(page);
-  expect(next.contentVersion).toBe(4); expect(next.inventory.water).toBe(2); expect(next.ground).toEqual({ 36: { water: 1 } });
+  expect(next.contentVersion).toBe(5); expect(next.inventory.water).toBe(2); expect(next.ground).toEqual({ 36: { water: 1 } });
   expect((await storage(page))[`${key}.original.0`]).toBe(raw);
   await page.getByRole("button", { name: "飲料水を1個拾う", exact: true }).click();
   expect((await saved(page)).inventory.water).toBe(3);

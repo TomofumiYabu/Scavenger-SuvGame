@@ -22,7 +22,7 @@ describe("保存の復元と検証", () => {
         searched: [36], energy: 41, rng: 12345,
       };
       const loaded = deserialize(JSON.stringify(legacy))!;
-      expect(loaded).toEqual({ ...legacy, version: 2, contentVersion: 4, ground: {}, inventory: { ...newGame().inventory, ...legacy.inventory }, pendingEvent: null, resolvedEvents: [], discovered: [...new Set([...legacy.discovered, ...neighbors(legacy.position)])] });
+      expect(loaded).toEqual({ ...legacy, version: 2, contentVersion: 5, ground: {}, inventory: { ...newGame().inventory, ...legacy.inventory }, pendingEvent: null, resolvedEvents: [], discovered: [...new Set([...legacy.discovered, ...neighbors(legacy.position)])] });
       expect(deserialize(JSON.stringify(loaded))).toEqual(loaded);
     },
   );
