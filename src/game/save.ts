@@ -1,4 +1,4 @@
-import { MAX_TURNS, SIZE, TOWER } from "./model";
+import { MAX_TURNS, SIZE, TOWER, neighbors } from "./model";
 import type { GameState } from "./model";
 
 const record = (value: unknown): value is Record<string, unknown> =>
@@ -66,7 +66,12 @@ export function deserialize(raw: string): GameState | null {
     )
       return null;
     // All fields used by the application were checked above. Never trust arbitrary saved HTML.
-    return s as unknown as GameState;
+    // v1 IDs and fields are unchanged. Preserve progress and reveal the current
+    // hex ring for square-grid saves, without inferring an unavailable route.
+    return {
+      ...s,
+      discovered: [...new Set([...s.discovered, ...neighbors(s.position)])],
+    } as unknown as GameState;
   } catch {
     return null;
   }

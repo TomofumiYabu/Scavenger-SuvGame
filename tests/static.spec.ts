@@ -13,7 +13,7 @@ test("静的ホストのサブディレクトリでも全アセットが読み�
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await page.getByRole("button", { name: "周囲を探索する" }).click();
   await expect(page.getByTestId("remaining")).toHaveText("47");
-  expect(await page.locator(".map-grid").evaluate(element => getComputedStyle(element).display)).toBe("grid");
+  expect(await page.locator(".map-grid").evaluate(element => getComputedStyle(element).position)).toBe("relative");
   expect(requests.some(url => url.endsWith(".js"))).toBe(true);
   expect(requests.some(url => url.endsWith(".css"))).toBe(true);
   expect(requests.every(url => url.startsWith("http://127.0.0.1:4174/Scavenger-SuvGame/"))).toBe(true);

@@ -45,7 +45,7 @@ app.innerHTML = `
   <dialog id="help-dialog" aria-labelledby="help-title">
     <span class="eyebrow">FIELD MANUAL / 01</span><h2 id="help-title">この街で、生き延びる。</h2>
     <p>北東の通信塔へ向かい、<strong>スクラップ3個</strong>で救難信号を送ってください。残された時間は48時間です。</p>
-    <ol><li>マップの隣の地点を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地を「探索」して水や食料を集めます。各地点は一度だけ探索できます。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。どの行動も1時間かかります。</li><li>満腹度・水分が0だと体力が減ります。廃墟では負傷することもあります。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
+    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地を「探索」して水や食料を集めます。各地点は一度だけ探索できます。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。どの行動も1時間かかります。</li><li>満腹度・水分が0だと体力が減ります。廃墟では負傷することもあります。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
     <p class="muted">進行状況はこのブラウザに自動保存されます。Tab と Enter、またはタップ・クリックで操作できます。</p>
     <form method="dialog"><button class="button primary">探索に戻る ${icon("arrow")}</button></form>
   </dialog>
@@ -82,11 +82,8 @@ function stat(
 
 function map(): string {
   const near = neighbors(state.position);
-  return `<div class="map-wrap"><div class="map-axis">${"ABCDEFG"
-    .split("")
-    .map((letter) => `<span>${letter}</span>`)
-    .join("")}</div>
-    <div class="map-grid" role="group" aria-label="探索マップ">${TILES.map(
+  return `<div class="map-wrap"><p class="map-hint" id="map-hint">六角形の辺を共有する6方向へ移動 · ＋ は隣接地点</p>
+    <div class="map-grid" role="group" aria-label="探索マップ" aria-describedby="map-hint">${TILES.map(
       (tile) => {
         const known = state.discovered.includes(tile.id);
         const isCurrent = tile.id === state.position;
@@ -94,14 +91,16 @@ function map(): string {
         const seen = known || isTower;
         const searched = state.searched.includes(tile.id);
         return `<button class="tile terrain-${tile.terrain} ${!seen ? "fog" : ""} ${isCurrent ? "current" : ""} ${selected === tile.id ? "selected" : ""} ${near.includes(tile.id) ? "adjacent" : ""} ${searched ? "searched" : ""}"
-        data-tile="${tile.id}" data-focus="tile-${tile.id}" aria-label="${coordinates(tile.id)} ${seen ? TERRAIN[tile.terrain].name : "未発見"}${isCurrent ? " 現在地" : ""}${searched ? " 探索済み" : ""}" aria-pressed="${selected === tile.id}" ${!seen ? "disabled" : ""}>
+        style="--hex-x:${tile.x + (tile.y % 2) / 2};--hex-y:${tile.y}" data-tile="${tile.id}" data-focus="tile-${tile.id}" aria-label="${coordinates(tile.id)} ${seen ? TERRAIN[tile.terrain].name : "未発見"}${isCurrent ? " 現在地" : ""}${searched ? " 探索済み" : ""}${near.includes(tile.id) ? " 隣接地点" : ""}" aria-pressed="${selected === tile.id}" ${!seen ? "disabled" : ""}>
+        <svg class="hex-outline" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon points="50,1 99,25.5 99,74.5 50,99 1,74.5 1,25.5" /></svg>
+        ${near.includes(tile.id) ? '<span class="neighbor-mark" aria-hidden="true">＋</span>' : ""}
         <span class="tile-coordinate">${coordinates(tile.id)}</span>
         ${seen ? icon(tile.terrain, "terrain-icon") : '<span class="fog-dot">·</span>'}
         ${isCurrent ? '<span class="player-dot"></span><span class="tile-label">現在地</span>' : isTower ? '<span class="tile-label">通信塔</span>' : searched ? `<span class="searched-mark">${icon("check")}</span>` : ""}
       </button>`;
       },
     ).join("")}</div>
-    <div class="map-legend"><span><i class="legend-player"></i>現在地</span><span><i class="legend-neighbor"></i>移動できる地点</span><span><i class="legend-fog"></i>未発見</span></div>
+    <div class="map-legend"><span><i class="legend-player"></i>現在地</span><span><i class="legend-neighbor"></i>＋ 隣接地点</span><span><i class="legend-fog"></i>未発見</span></div>
   </div>`;
 }
 

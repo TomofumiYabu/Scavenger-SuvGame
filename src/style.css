@@ -448,33 +448,57 @@ h1 span {
   flex-direction: column;
   justify-content: center;
 }
-.map-axis {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  padding: 9px 0;
-  color: #8b957e;
-  font: 9px monospace;
-  text-align: center;
+.map-hint {
+  padding: 9px 0 12px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.7;
 }
 .map-grid {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 3px;
-  aspect-ratio: 1.12;
+  position: relative;
+  /* 7.5 widths; 5.5 heights for seven interlocking pointy-top rows. */
+  aspect-ratio: 1.1809437;
+  container-type: inline-size;
 }
 .tile {
+  --hex-edge: #4c5841;
+  position: absolute;
+  left: calc(var(--hex-x) * 100% / 7.5 + 1px);
+  top: calc(var(--hex-y) * 75% / 5.5 + 1px);
+  width: calc(100% / 7.5 - 2px);
+  height: calc(100% / 5.5 - 2px);
   min-width: 0;
   padding: 0;
-  border: 1px solid #4c584138;
+  border: 0;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
   background: #343e2b;
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   isolation: isolate;
-  transition:
-    background 0.15s,
-    border-color 0.15s;
+  transition: background 0.15s;
+}
+.hex-outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--hex-edge);
+  stroke-width: 1;
+  pointer-events: none;
+}
+.tile:focus-visible .hex-outline {
+  stroke: #ffe4a7;
+  stroke-width: 5;
+  stroke-dasharray: 7 3;
+}
+.neighbor-mark {
+  position: absolute;
+  right: 10%;
+  top: 30%;
+  font-size: clamp(7px, 2cqw, 11px);
+  color: #c7d3a9;
 }
 .tile::before {
   content: "";
@@ -490,8 +514,10 @@ h1 span {
   );
 }
 .tile .terrain-icon {
-  width: 32px;
-  height: 32px;
+  width: 45%;
+  height: 45%;
+  max-width: 32px;
+  max-height: 32px;
   color: #8d9a78;
   opacity: 0.9;
 }
@@ -500,8 +526,10 @@ h1 span {
     7px ui-monospace,
     monospace;
   position: absolute;
-  top: 4px;
-  left: 5px;
+  top: 15%;
+  left: 0;
+  right: 0;
+  text-align: center;
   color: #b4c49d80;
 }
 .tile.terrain-street {
@@ -530,7 +558,7 @@ h1 span {
 }
 .tile.terrain-tower {
   background: #4a4932;
-  border: 1px solid #99865580;
+  --hex-edge: #998655;
 }
 .tile.terrain-tower .terrain-icon {
   color: var(--gold);
@@ -539,21 +567,22 @@ h1 span {
   color: #c2bb8f;
 }
 .tile.adjacent {
-  border: 1px solid #8f9f6c99;
+  --hex-edge: #8f9f6c;
 }
 .tile.adjacent:hover,
 .tile:not(:disabled):hover {
   background: #505c3c;
-  border-color: #c2ce9d;
+  --hex-edge: #c2ce9d;
 }
 .tile.selected {
-  outline: 1px solid var(--gold);
-  outline-offset: -1px;
-  border-color: var(--gold);
+  --hex-edge: var(--gold);
+}
+.tile.selected .hex-outline {
+  stroke-width: 3;
 }
 .tile.current {
   background: #56613e;
-  border-color: #cbce9c;
+  --hex-edge: #cbce9c;
 }
 .tile.current .terrain-icon {
   opacity: 0.3;
@@ -572,7 +601,7 @@ h1 span {
 }
 .tile-label {
   position: absolute;
-  bottom: 4px;
+  bottom: 14%;
   left: 0;
   right: 0;
   text-align: center;
@@ -582,7 +611,7 @@ h1 span {
 }
 .tile.fog {
   background: #222a23;
-  border-color: #353f3140;
+  --hex-edge: #353f31;
 }
 .tile.fog:before {
   background: repeating-linear-gradient(
@@ -601,8 +630,8 @@ h1 span {
 }
 .searched-mark {
   position: absolute;
-  bottom: 3px;
-  right: 3px;
+  bottom: 15%;
+  right: 25%;
   color: #aab490;
 }
 .searched-mark .icon {
@@ -1070,13 +1099,6 @@ dialog > form .button {
   .map-wrap {
     padding: 0 25px;
   }
-  .tile .terrain-icon {
-    width: 38px;
-    height: 38px;
-  }
-  .map-grid {
-    aspect-ratio: 1.16;
-  }
   .survivor-id {
     padding-top: 27px;
   }
@@ -1126,13 +1148,6 @@ dialog > form .button {
   }
   .map-coordinate {
     font-size: 8px;
-  }
-  .map-grid {
-    aspect-ratio: 0.85;
-  }
-  .tile .terrain-icon {
-    width: 26px;
-    height: 26px;
   }
   .map-legend {
     gap: 8px;
@@ -1236,9 +1251,6 @@ dialog > form .button {
   .stat-caption {
     font-size: 8px;
   }
-  .map-grid {
-    aspect-ratio: 0.98;
-  }
   .bottom-grid {
     grid-template-columns: 1fr;
   }
@@ -1298,10 +1310,6 @@ dialog > form .button {
   }
   .location-copy h2 {
     font-size: 18px;
-  }
-  .tile .terrain-icon {
-    width: 30px;
-    height: 30px;
   }
 }
 @media (max-width: 680px) {
@@ -1414,13 +1422,8 @@ dialog > form .button {
   .map-wrap {
     padding: 0 15px;
   }
-  .map-grid {
-    aspect-ratio: 1.05;
-    gap: 3px;
-  }
-  .tile .terrain-icon {
-    width: 29px;
-    height: 29px;
+  .map-hint {
+    font-size: 8px;
   }
   .map-legend {
     font-size: 8px;
@@ -1428,7 +1431,8 @@ dialog > form .button {
     margin: 15px 0;
   }
   .tile-label {
-    font-size: 7px;
+    font-size: 6px;
+    letter-spacing: 0;
   }
   .tile-coordinate {
     font-size: 7px;

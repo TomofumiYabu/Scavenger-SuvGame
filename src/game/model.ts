@@ -126,9 +126,15 @@ export function tileAt(id: number): Tile {
 }
 export function neighbors(id: number): number[] {
   const { x, y } = tileAt(id);
-  return TILES.filter(
-    (tile) => Math.abs(tile.x - x) + Math.abs(tile.y - y) === 1,
-  ).map((tile) => tile.id);
+  // Pointy-top odd-r offset: odd (zero-based) rows are shifted right.
+  const diagonal = y % 2 === 0 ? -1 : 1;
+  return TILES.filter((tile) => {
+    const dx = tile.x - x;
+    const dy = tile.y - y;
+    return dy === 0
+      ? Math.abs(dx) === 1
+      : Math.abs(dy) === 1 && (dx === 0 || dx === diagonal);
+  }).map((tile) => tile.id);
 }
 export function coordinates(id: number): string {
   const tile = tileAt(id);

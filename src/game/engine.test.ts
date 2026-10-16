@@ -13,8 +13,8 @@ describe("探索と行動", () => {
     expect(s.discovered).not.toContain(TOWER);
     expect(s.turn).toBe(0);
   });
-  it("移動は隣接する4方向だけ。行の端は折り返さない", () => {
-    expect(neighbors(6)).toEqual([5, 13]);
+  it("移動は辺を共有する6方向だけ。行の端は折り返さない", () => {
+    expect(neighbors(6)).toEqual([5, 12, 13]);
     const s = newGame();
     expect(act(s, { type: "move", target: 28 })).toBe(s);
     expect(act(s, { type: "move", target: 100 })).toBe(s);
@@ -33,6 +33,13 @@ describe("探索と行動", () => {
     });
     expect(moved.discovered).toContain(22);
     expect(s).toEqual(before);
+  });
+  it("斜めの六角形へ移動して新しい隣接範囲を発見する", () => {
+    const s = newGame();
+    const moved = act(s, { type: "move", target: 30 });
+    expect(moved).toMatchObject({ position: 30, turn: 1, energy: 79 });
+    expect(moved.discovered).toEqual(expect.arrayContaining([30, ...neighbors(30)]));
+    expect(act(s, { type: "move", target: 28 })).toBe(s);
   });
   it("探索収穫を一度だけ受け取り、2回目は時間も消費しない", () => {
     const s = act(newGame(), { type: "search" });
