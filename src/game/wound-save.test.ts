@@ -67,7 +67,7 @@ describe("content6 wound validation and original save protection", () => {
   });
 
   it("protects unsupported old minor and future content6+ data against normal save and legacy fallback", () => {
-    for (const override of [{ contentVersion: 5, wound: "minor" }, { contentVersion: 7, wound: "none" }]) {
+    for (const override of [{ contentVersion: 5, wound: "minor" }, { contentVersion: 8, wound: "none" }]) {
       const raw = JSON.stringify({ ...newGame(), ...override }); const { data, store } = fixture(raw);
       data.set(LEGACY_SAVE_KEY, JSON.stringify({ ...withoutWound(newGame()), version: 1, inventory: legacyInventory(newGame().inventory), health: 45 }));
       const loaded = store.load(); expect(loaded.health).toBe(100); expect(store.mode).toBe("protected");
@@ -89,7 +89,7 @@ describe("authentic wound-free save migration", () => {
     };
     const raw = JSON.stringify(old, null, 2); const result = decodeSave(raw);
     expect(result.kind).toBe("migrated"); if (!("state" in result)) throw new Error("migration expected");
-    expect(result.state).toEqual({ ...old, contentVersion: 6, wound: "none", ground: old.ground ?? {}, inventory: { snack: 0, electrolyte: 0, medkit: 0, coffee: 0, ...old.inventory }, discovered: [...new Set([...old.discovered, ...neighbors(29)])] });
+    expect(result.state).toEqual({ ...old, contentVersion: 7, recap: null, wound: "none", ground: old.ground ?? {}, inventory: { snack: 0, electrolyte: 0, medkit: 0, coffee: 0, ...old.inventory }, discovered: [...new Set([...old.discovered, ...neighbors(29)])] });
     expect(JSON.stringify(old, null, 2)).toBe(raw); expect(deserialize(JSON.stringify(result.state))).toEqual(result.state);
   });
 
@@ -119,7 +119,7 @@ describe("authentic wound-free save migration", () => {
     expect(Object.hasOwn(old, "wound")).toBe(false);
     const result = decodeSave(raw); expect(result.kind).toBe("migrated");
     if (!("state" in result)) throw new Error("migration expected");
-    expect(result.state).toEqual({ ...old, contentVersion: 6, wound: "none", discovered: [...new Set([...old.discovered, ...neighbors(old.position)])] });
+    expect(result.state).toEqual({ ...old, contentVersion: 7, recap: null, wound: "none", discovered: [...new Set([...old.discovered, ...neighbors(old.position)])] });
     const { data, store, storage } = fixture(raw);
     const loaded = store.load(); expect(loaded).toEqual(result.state); expect(data.size).toBe(1);
     const next = act(loaded, pending ? { type: "choose", event: "delivery-van", tile: 30, choice: "probe" } : { type: "rest" });

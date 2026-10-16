@@ -20,7 +20,7 @@ describe("保存の保護・退避・復旧", () => {
     const state = store.load(); expect(data.get(SAVE_KEY)).toBeUndefined();
     expect(state.version).toBe(2); expect(store.save(act(state, { type: "search" }))).toBe(true);
     expect(data.get(LEGACY_SAVE_KEY)).toBe(original);
-    expect(JSON.parse(data.get(SAVE_KEY)!)).toMatchObject({ version: 2, contentVersion: 6, turn: 1 });
+    expect(JSON.parse(data.get(SAVE_KEY)!)).toMatchObject({ version: 2, contentVersion: 7, turn: 1 });
   });
   it.each(["{broken", JSON.stringify({ version: 99 }), JSON.stringify({ ...newGame(), resolvedEvents: ["future"] })])("不正/未来の主保存を旧保存より優先して保護する: %s", original => {
     const { data, store } = fixture(); data.set(SAVE_KEY, original); data.set(LEGACY_SAVE_KEY, raw());
@@ -97,17 +97,17 @@ describe("旧内容版から6への移行", () => {
     const { data, store } = fixture();
     const pending = act(newGame(), { type: "move", target: 29 });
     const previous = resolved ? act(pending, { type: "choose", event: "collapsed-cache", tile: 29, choice: "safe" }) : pending;
-    const { ground: _ground, ...oldProgress } = previous;
+    const { ground: _ground, recap: _recap, ...oldProgress } = previous;
     const original = JSON.stringify({ ...oldProgress, contentVersion, inventory: contentVersion === 3 ? previous.inventory : legacyInventory(previous.inventory) }, null, 2);
     data.set(SAVE_KEY, original);
     const loaded = store.load();
-    expect(loaded).toEqual({ ...previous, ground: {} }); expect(data.size).toBe(1); expect(data.get(SAVE_KEY)).toBe(original);
+    expect(loaded).toEqual({ ...previous, recap: null, ground: {} }); expect(data.size).toBe(1); expect(data.get(SAVE_KEY)).toBe(original);
     const next = act(loaded, resolved ? { type: "rest" } : { type: "choose", event: "collapsed-cache", tile: 29, choice: "leave" });
     expect(store.save(next)).toBe(true);
     expect(data.get(`${ARCHIVE_PREFIX}0`)).toBe(original); expect(data.get(BACKUP_KEY)).toBe(original);
-    expect(store.backup()).toEqual({ ...previous, ground: {} });
+    expect(store.backup()).toEqual({ ...previous, recap: null, ground: {} });
     expect(store.replace(store.backup()!)).toBe(true);
-    expect(JSON.parse(data.get(SAVE_KEY)!).contentVersion).toBe(6);
+    expect(JSON.parse(data.get(SAVE_KEY)!).contentVersion).toBe(7);
     expect(data.get(`${ARCHIVE_PREFIX}0`)).toBe(original);
   });
   it("通常の自動保存を重ねても移行前の原文退避は1件だけ", () => {
@@ -125,7 +125,7 @@ describe("旧内容版から6への移行", () => {
     if (failure === "primary-read") {
       // Simulate readback failure only after a successful primary write, not its preflight read.
       const faulty = new SaveStore(() => ({ getItem: key => data.get(key) ?? null, setItem() {} }));
-      expect(faulty.load().contentVersion).toBe(6);
+      expect(faulty.load().contentVersion).toBe(7);
       const storage: StorageAccess = {
         getItem: key => key === SAVE_KEY && data.get(key) !== original ? "wrong" : data.get(key) ?? null,
         setItem: (key, value) => { data.set(key, value); },
@@ -144,7 +144,7 @@ describe("旧内容版から6への移行", () => {
     expect(data.get(`${ARCHIVE_PREFIX}0`)).toBe(original); expect(data.has(`${ARCHIVE_PREFIX}1`)).toBe(false);
   });
   it("内容版1に新しいイベントが紛れた保存は解釈せず保護する", () => {
-    for (const override of [{ resolvedEvents: ["clinic-supplies"] }, { position: 36, pendingEvent: { id: "shelter-embers", tile: 36 } }, { contentVersion: 7 }]) {
+    for (const override of [{ resolvedEvents: ["clinic-supplies"] }, { position: 36, pendingEvent: { id: "shelter-embers", tile: 36 } }, { contentVersion: 8 }]) {
       const { data, store } = fixture(); const original = JSON.stringify({ ...newGame(), contentVersion: 1, inventory: legacyInventory(newGame().inventory), ...override }); data.set(SAVE_KEY, original);
       const state = store.load(); expect(store.mode).toBe("protected"); expect(store.save(act(state, { type: "search" }))).toBe(false); expect(data.get(SAVE_KEY)).toBe(original);
     }

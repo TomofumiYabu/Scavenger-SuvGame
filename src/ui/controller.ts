@@ -21,7 +21,7 @@ export function startGame(app: HTMLElement): void {
   const currentTile = () => game.querySelector<HTMLElement>(`[data-tile="${state.position}"]`);
   const focusState = () => reveal(state.pendingEvent ? game.querySelector("#event-title") : state.status !== "active" ? game.querySelector("#ending-title") : currentTile());
   draw();
-  if (state.pendingEvent) reveal(game.querySelector("#event-title"));
+  if (state.pendingEvent || state.status !== "active") focusState();
 
   app.addEventListener("click", event => {
     const button = (event.target as Element).closest<HTMLButtonElement>("button");

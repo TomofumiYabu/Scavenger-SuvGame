@@ -1,3 +1,4 @@
+import { withoutRecap } from "./fixtures";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { act, newGame } from "../src/game/engine";
@@ -177,7 +178,7 @@ test("負傷と探索方式の選択待ち・地面を再読込で保持し、�
 test("実際の内容版5を読取専用で負傷なしへ移行し、探索待機・地面を保ったまま初回保存で原文退避する", async ({ page }) => {
   const state = act(at(38), { type: "search", mode: "careful" });
   state.ground[30] = { coffee: 1 }; state.discovered.push(30);
-  const { wound: _wound, ...old } = state;
+  const { wound: _wound, ...old } = withoutRecap(state);
   const raw = JSON.stringify({ ...old, contentVersion: 5 }, null, 2);
   expect(JSON.parse(raw)).not.toHaveProperty("wound");
   await seed(page, raw); await page.goto("/");
@@ -185,7 +186,7 @@ test("実際の内容版5を読取専用で負傷なしへ移行し、探索待�
   await expect(page.locator(".event-search-context")).toContainText("慎重に探す");
   expect(await storage(page)).toEqual({ [key]: raw }); await page.reload(); expect(await storage(page)).toEqual({ [key]: raw });
   await page.locator('[data-choice="leave"]').click();
-  const after = await saved(page); expect(after.contentVersion).toBe(6); expect(after.wound).toBe("none"); expect(after.ground).toEqual(state.ground); expect(after.turn).toBe(state.turn);
+  const after = await saved(page); expect(after.contentVersion).toBe(7); expect(after.wound).toBe("none"); expect(after.ground).toEqual(state.ground); expect(after.turn).toBe(state.turn);
   expect((await storage(page))[`${key}.original.0`]).toBe(raw); expect((await storage(page))[`${key}.backup`]).toBe(raw);
   await page.reload(); expect(await saved(page)).toEqual(after); expect((await storage(page))[`${key}.original.0`]).toBe(raw);
 });

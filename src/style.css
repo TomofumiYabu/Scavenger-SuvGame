@@ -1687,3 +1687,33 @@ dialog > form .button {
 .ground-guidance > div > span { font-size: 10px; color: var(--muted); }
 .ground-guidance .action-details { margin: 4px 0 0; }
 .ground-controls .use-button { white-space: normal; }
+
+/* The result stays concise; the player opens the longer expedition record. */
+.ending { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 24px; align-items: start; overflow-wrap: anywhere; }
+.ending > .button { align-self: start; }
+.ending-summary { min-width: 0; }
+.ending .recap-reason { color: #eee5cf; font-size: 14px; font-weight: 600; }
+.ending .recap-last { margin-top: 10px; }
+.ending .recap-coverage { color: var(--muted); font-size: 11px; margin-top: 8px; }
+.recap-content { grid-column: 1 / -1; min-width: 0; font-size: 12px; line-height: 1.8; }
+.recap-hints h3, .recap-detail-body h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.recap-hints ul, .recap-timeline ul { padding-left: 20px; }
+.recap-hints li + li { margin-top: 6px; }
+#recap-details { margin-top: 18px; border-top: 1px solid #7d604566; padding-top: 12px; }
+#recap-details summary { cursor: pointer; padding: 8px 0; min-height: 44px; }
+#recap-details summary:focus-visible { outline: 2px dashed #d9e5b4; outline-offset: 3px; }
+.recap-detail-body { margin-top: 12px; max-width: 85ch; }
+.recap-time { margin: 12px 0 24px; }
+.recap-time > div { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; border-bottom: 1px solid #7d604544; }
+.recap-time dt { min-width: 0; }
+.recap-time small { color: var(--muted); font-size: 11px; margin-left: 8px; }
+.recap-time dd { flex-shrink: 0; margin: 0; color: #e2cca1; }
+.recap-timeline { padding-left: 22px; }
+.recap-timeline > li { padding: 10px 0 16px 4px; border-bottom: 1px solid #7d604544; }
+.ending .recap-turn { color: var(--muted); font-size: 11px; }
+.recap-timeline h4 { margin: 4px 0 6px; font-size: 13px; font-weight: 600; }
+@media (max-width: 680px) {
+  .ending { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .ending > .button { width: 100%; }
+  .ending .recap-reason { font-size: 13px; }
+}

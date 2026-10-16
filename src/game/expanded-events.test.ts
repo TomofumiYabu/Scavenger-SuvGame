@@ -60,7 +60,7 @@ const injured = (state: GameState): GameState => ({ ...state, health: 55, hunger
     expect(act(state, choose(state, "pack"))).toBe(state);
   });
   it("睡眠後の空腹・渇きによる死亡は回復の後に判定し、待機を残さない", () => {
-    const state = { ...shelter(), health: 12, hunger: 8, thirst: 10 };
+    const state = { ...shelter(), recap: null, health: 12, hunger: 8, thirst: 10 };
     const action = choose(state, "sleep");
     expect(assessAction(state, action).risks.join()).toContain("体力が尽きます");
     const next = act(state, action); expect(next).toMatchObject({ health: 0, status: "dead", pendingEvent: null, resolvedEvents: ["shelter-embers"] });

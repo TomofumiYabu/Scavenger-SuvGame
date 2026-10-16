@@ -14,6 +14,7 @@ export type Terrain =
   | "tower";
 import type { Item } from "./items";
 import type { Wound } from "./wounds";
+import type { RunRecap } from "./recap";
 export type { Item } from "./items";
 export { ITEM_NAMES } from "./items";
 export type SearchMode = "quick" | "careful";
@@ -27,7 +28,8 @@ export interface Tile {
 }
 export interface GameState {
   version: 2;
-  contentVersion: 6;
+  contentVersion: 7;
+  recap: RunRecap | null;
   wound: Wound;
   pendingEvent: { id: EventId; tile: number; searchMode?: SearchMode } | null;
   resolvedEvents: EventId[];

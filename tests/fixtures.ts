@@ -16,3 +16,9 @@ export function withoutWound<T extends { wound: unknown }>(state: T): Omit<T, "w
   const { wound: _wound, ...old } = state;
   return old;
 }
+
+/** Historical schemas/content 1–6 have no structured recap. */
+export function withoutRecap<T extends { recap: unknown }>(state: T): Omit<T, "recap"> {
+  const { recap: _recap, ...old } = state;
+  return old;
+}

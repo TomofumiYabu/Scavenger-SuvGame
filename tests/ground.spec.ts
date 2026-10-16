@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import { act, newGame } from "../src/game/engine";
 import { neighbors } from "../src/game/model";
 import type { GameState } from "../src/game/model";
-import { withoutGround, withoutWound } from "./fixtures";
+import { withoutGround, withoutWound, withoutRecap } from "./fixtures";
 
 const key = "afterlight.save.v2";
 async function seed(page: Page, state: GameState | string) {
@@ -144,7 +144,7 @@ test("不正なDOMの物資・数量と重複・古い回収は状態も保存�
 
 test("内容版3から移行しても探索済みの収穫を複製しない", async ({ page }) => {
   const state = newGame(); state.searched = [36]; state.inventory.water = 3; state.inventory.food = 3;
-  const raw = JSON.stringify({ ...withoutWound(withoutGround(state)), contentVersion: 3 }, null, 2);
+  const raw = JSON.stringify({ ...withoutRecap(withoutWound(withoutGround(state))), contentVersion: 3 }, null, 2);
   await seed(page, raw); await page.goto("/");
   await expect(page.getByRole("button", { name: "手早く探す", exact: true })).toBeDisabled();
   await expect(page.locator(".ground-empty")).toBeVisible();
@@ -152,7 +152,7 @@ test("内容版3から移行しても探索済みの収穫を複製しない", a
   await page.reload(); expect(await storage(page)).toEqual({ [key]: raw });
   await page.getByRole("button", { name: "飲料水をここに1個置く", exact: true }).click();
   const next = await saved(page);
-  expect(next.contentVersion).toBe(6); expect(next.inventory.water).toBe(2); expect(next.ground).toEqual({ 36: { water: 1 } });
+  expect(next.contentVersion).toBe(7); expect(next.inventory.water).toBe(2); expect(next.ground).toEqual({ 36: { water: 1 } });
   expect((await storage(page))[`${key}.original.0`]).toBe(raw);
   await page.getByRole("button", { name: "飲料水を1個拾う", exact: true }).click();
   expect((await saved(page)).inventory.water).toBe(3);

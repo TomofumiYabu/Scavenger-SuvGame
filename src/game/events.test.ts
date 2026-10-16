@@ -49,7 +49,7 @@ describe("備蓄庫の選択", () => {
     expect(back.pendingEvent).toBeNull();
   });
   it("最後の時間と死亡を通常と同じ順に解決し待機を残さない", () => {
-    const state = { ...entry(), turn: 47 };
+    const state = { ...entry(), recap: null, turn: 47 };
     expect(assessAction(state, choose("safe")).risks.join()).toContain("救助の機会");
     expect(act(state, choose("safe"))).toMatchObject({ status: "lost", pendingEvent: null });
     const danger = { ...state, health: 12, hunger: 3 };
@@ -60,7 +60,7 @@ describe("備蓄庫の選択", () => {
     expect(deserialize(JSON.stringify({ ...entry(), ...override }))).toBeNull();
   });
   it("未知の内容は非対応として保護する", () => {
-    for (const override of [{ contentVersion: 7 }, { version: 3 }, { pendingEvent: { id: "future", tile: 29 } }, { resolvedEvents: ["future"] }]) expect(decodeSave(JSON.stringify({ ...entry(), ...override })).kind).toBe("unsupported");
+    for (const override of [{ contentVersion: 8 }, { version: 3 }, { pendingEvent: { id: "future", tile: 29 } }, { resolvedEvents: ["future"] }]) expect(decodeSave(JSON.stringify({ ...entry(), ...override })).kind).toBe("unsupported");
   });
 });
 

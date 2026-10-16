@@ -118,6 +118,7 @@ describe("choosing supplies on the ground", () => {
 describe("ground saves and historical loot", () => {
   it.each([[1, undefined], [2, 1], [2, 2], [2, 3]] as const)("reads schema%s/content%s without reconstructing searched/event loot", (version, contentVersion) => {
     const state = act(act(newGame(), { type: "move", target: 29 }), { type: "choose", event: "collapsed-cache", tile: 29, choice: "safe" });
+    state.recap = null; // Explicit unrecorded historical fixture.
     state.searched = [29]; state.inventory.water = 17;
     const { ground: _ground, ...withoutGround } = state;
     if (contentVersion === 3) { state.inventory.coffee = 7; state.inventory.medkit = 2; }
@@ -148,7 +149,7 @@ describe("ground saves and historical loot", () => {
 
   it("protects unknown ground item IDs and future formats", () => {
     for (const id of ["future", "constructor", "__proto__"]) expect(decodeSave(JSON.stringify({ ...newGame(), ground: { "36": { [id]: 1 } } })).kind).toBe("unsupported");
-    expect(decodeSave(JSON.stringify({ ...newGame(), contentVersion: 7 })).kind).toBe("unsupported");
+    expect(decodeSave(JSON.stringify({ ...newGame(), contentVersion: 8 })).kind).toBe("unsupported");
     const { coffee: _coffee, ...missing } = newGame().inventory;
     for (const contentVersion of [3, 4, 5, 6]) expect(decodeSave(JSON.stringify({ ...newGame(), contentVersion, inventory: missing })).kind).toBe("corrupt");
   });

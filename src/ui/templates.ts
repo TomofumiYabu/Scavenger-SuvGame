@@ -20,6 +20,7 @@ import { WOUND_ENERGY_PER_HOUR, WOUND_NAMES } from "../game/wounds";
 
 import { escape, outcomePanel } from "./outcome";
 import type { Outcome } from "./outcome";
+import { recapPanel } from "./recap";
 
 export const shell = `
   <div id="game"></div>
@@ -170,7 +171,8 @@ function ground(): string {
 function ending(): string {
   if (state.status === "active") return "";
   const won = state.status === "won";
-  return `<section class="ending ${won ? "ending-won" : ""}" role="status"><div>${icon(won ? "tower" : "rest")}<span class="eyebrow">${won ? "SIGNAL RECEIVED" : "END OF EXPEDITION"}</span><h2 id="ending-title" tabindex="-1">${won ? "その声は、届いた。" : state.status === "dead" ? "街は、再び静かになった。" : "最後の電波が、途絶えた。"}</h2><p>${won ? `${state.turn}時間の探索を経て、救助との交信に成功しました。あなたの物語は、ここから続きます。` : "探索は終了しました。次の夜明けには、違う道が見つかるかもしれません。"}</p></div><button class="button primary" data-action="reset">新しい探索 ${icon("arrow")}</button></section>`;
+  const recap = recapPanel(state);
+  return `<section class="ending ${won ? "ending-won" : ""}" aria-labelledby="ending-title"><div class="ending-summary">${icon(won ? "tower" : "rest")}<span class="eyebrow">${won ? "SIGNAL RECEIVED" : "END OF EXPEDITION"}</span><h2 id="ending-title" tabindex="-1">${won ? "その声は、届いた。" : state.status === "dead" ? "街は、再び静かになった。" : "最後の電波が、途絶えた。"}</h2>${recap.summary}</div><button class="button primary" data-action="reset">新しい探索 ${icon("arrow")}</button>${recap.details}</section>`;
 }
 
 

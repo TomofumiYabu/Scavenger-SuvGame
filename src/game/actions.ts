@@ -3,6 +3,7 @@ import { eventChoice, eventById } from "./events";
 import { ITEM_NAMES, MAX_TURNS, TOWER, neighbors, tileAt } from "./model";
 import type { Action, GameState, Item, SearchMode, Terrain } from "./model";
 import { WOUND_ENERGY_PER_HOUR } from "./wounds";
+import type { RecapDamage, FatalCause } from "./recap";
 
 import type { Stat } from "./items";
 export type { Stat } from "./items";
@@ -90,18 +91,26 @@ export function actionTerms(state: GameState, action: Action): ActionTerms {
 }
 
 /** An action completes atomically. Each hour spends an equal share of its total costs. */
-export function projectStats(state: GameState, terms: ActionTerms, injuryDamage = 0): { after: Record<Stat, number>; depletion: Record<"hunger" | "thirst", number> } {
+export function projectStats(state: GameState, terms: ActionTerms, injuryDamage = 0): { after: Record<Stat, number>; depletion: Record<"hunger" | "thirst", number>; damage: RecapDamage; fatalCause: FatalCause | null } {
   const after = {} as Record<Stat, number>;
   for (const key of ["health", "hunger", "thirst", "energy"] as const) after[key] = cap(state[key] + (terms.recovery[key] ?? 0));
-  after.health = cap(after.health - injuryDamage);
+  const damage: RecapDamage = { injury: 0, hunger: 0, thirst: 0 };
+  let fatalCause: FatalCause | null = null;
+  const hurt = (source: FatalCause, amount: number) => {
+    const removed = Math.min(after.health, amount);
+    damage[source] += removed;
+    if (after.health > 0 && after.health - removed === 0) fatalCause = source;
+    after.health = cap(after.health - amount);
+  };
+  hurt("injury", injuryDamage);
   const depletion = { hunger: 0, thirst: 0 };
   for (let hour = 0; hour < terms.hours; hour++) {
     for (const key of ["health", "hunger", "thirst", "energy"] as const) after[key] = cap(after[key] - (terms.costs[key] ?? 0) / terms.hours);
     for (const key of ["hunger", "thirst"] as const) {
-      if (after[key] === 0) { depletion[key] += STARVATION_DAMAGE; after.health = cap(after.health - STARVATION_DAMAGE); }
+      if (after[key] === 0) { depletion[key] += STARVATION_DAMAGE; hurt(key, STARVATION_DAMAGE); }
     }
   }
-  return { after, depletion };
+  return { after, depletion, damage, fatalCause };
 }
 
 export interface ActionAssessment extends ActionTerms {

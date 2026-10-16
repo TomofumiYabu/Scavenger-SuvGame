@@ -9,6 +9,7 @@ import {
   tileAt,
 } from "./model";
 import type { Action, GameState, Item, LogKind } from "./model";
+import { recordRecap } from "./recap";
 
 function note(state: GameState, text: string, kind: LogKind = "info"): void {
   state.log = [{ turn: state.turn, text, kind }, ...state.log].slice(0, 12);
@@ -16,7 +17,8 @@ function note(state: GameState, text: string, kind: LogKind = "info"): void {
 export function newGame(): GameState {
   return {
     version: 2,
-    contentVersion: 6,
+    contentVersion: 7,
+    recap: null,
     wound: "none",
     pendingEvent: null,
     resolvedEvents: [],
@@ -136,7 +138,7 @@ export function act(previous: GameState, action: Action): GameState {
       break;
     }
   }
-  const { after, depletion } = projectStats(previous, terms, injuryDamage);
+  const { after, depletion, damage, fatalCause } = projectStats(previous, terms, injuryDamage);
   Object.assign(state, after);
   if (injuryDamage) state.wound = "minor";
   else if (terms.treatsWound && previous.wound === "minor") {
@@ -171,5 +173,6 @@ export function act(previous: GameState, action: Action): GameState {
       note(state, event.discovery);
     }
   }
+  if (action.type !== "pickup" && action.type !== "drop") recordRecap(previous, state, action, damage, fatalCause);
   return state;
 }
