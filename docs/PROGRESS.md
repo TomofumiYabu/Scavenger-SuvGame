@@ -58,6 +58,12 @@ Wiki調査のため `neoscavenger.fandom.com` を許可先ドラフトへ追加�
 
 ## GitHub と Pages 公開
 
+最新の公開: 六角形マップの変更をコミット `403cc41` として `main` へプッシュ。[Actions実行 38836232266](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38836232266) のテスト・ビルド・Pages公開は成功。公開URLからTLS検証を有効にしたHTTP取得を行い、HTMLとJS/CSSの全2ファイルがCloudで検証済みの `dist/` とバイト単位で一致することを確認した。
+
+公開URLでのChromium操作確認は `ERR_CERT_AUTHORITY_INVALID` で接続できず未完了。証明書検証は無効化していない。六方向移動・保存復元などの実操作はCloud内とActionsのブラウザテストで検証済みであり、公開URLへの直接操作とは区別する。
+
+以下は初回公開からの履歴。
+
 - ゲーム本体を初回コミット `fe2e970` として `main` へプッシュ済み。
 - ユーザーの指示により、今後は検証が通った機能単位・作業の区切りでコミットとプッシュを行う。方針を `AGENTS.md` に記録した。
 - `.github/workflows/pages.yml` を追加。main ではテスト・ビルド後に Pages へ公開し、PR では検証のみ実施する。Actions は公式タグのコミット SHA で固定。
@@ -68,6 +74,7 @@ Wiki調査のため `neoscavenger.fandom.com` を許可先ドラフトへ追加�
 - 公開用構成をコミット `47e5e6e` として `main` へプッシュ済み。
 - [GitHub Actions 初回実行](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38818951859) の **Test and build は成功**（47秒）。**Deploy to GitHub Pages は失敗**（4秒）。`Configure GitHub Pages` が `Get Pages site failed / 404 Not Found` を報告し、Pages の有効化と GitHub Actions ソースの設定を要求している。
 - **2026-10-16: ユーザーから設定完了・動作確認済みとの報告あり。初回有効化のブロッカーは解消。** Codexからも公開URLのHTML取得成功とAFTERLIGHTのタイトルを確認。公開サイトの実操作はユーザー確認に基づき、今回Codexは再実施していない。
+- 六角形版の公開時にGitHub APIへの接続も成功し、初回実行 `38818951859` が再実行後に成功していることを確認。上記の初回失敗は過去の試行の記録。
 - 公開URLは `https://tomofumiyabu.github.io/Scavenger-SuvGame/`。初回設定・復旧手順は `docs/DEPLOYMENT.md` に記録。
 - 初回実行結果の記録コミット `35679b5` は文書だけの変更のため `[skip ci]` で保存した。当時まだ未有効だった Pages への同じ失敗の再実行を避けたもので、現在の公開状態とは区別する。
 
