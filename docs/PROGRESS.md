@@ -29,7 +29,7 @@
 - [x] AL-007: 8種のアイテム定義、容量24、過積載セーブ保護（Cloud・Actions検証と公開確認完了）
 - [x] AL-008: 物資を選んで拾う・置く操作と地点ごとの保持（Cloud・Actions検証と公開確認完了）
 - [x] AL-009: イベント6件と持ち物・探索方法による分岐（Cloud・Actions検証と公開確認完了）
-- [x] AL-010: 軽傷と探索・処置・撤退の連動（Cloud検証完了、公開確認はこれから）
+- [x] AL-010: 軽傷と探索・処置・撤退の連動（Cloud・Actions検証と公開確認完了）
 - [ ] AL-011〜022は未着手（次は敗因と主要な選択の振り返り）
 
 ## 実装済み
@@ -48,7 +48,7 @@ AL-010では廃墟の手早い探索・備蓄庫の深掘りによる体力−10
 
 ## 検証結果
 
-AL-010統合版の `npm run check` はCloudで一括成功。公開用Actionsと公開ファイルの確認はこれから。現在の集計とAL-010の確認内容を記録し、以前の版の検証結果は後段に履歴として残す。
+AL-010統合版の `npm run check` はCloudと公開用Actionsで一括成功。公開ファイルの一致も確認済み。現在の集計とAL-010の確認内容を記録し、以前の版の検証結果は後段に履歴として残す。
 
 | 対象 | 結果 |
 | --- | --- |
@@ -57,7 +57,7 @@ AL-010統合版の `npm run check` はCloudで一括成功。公開用Actionsと
 | `npm run typecheck` | 現行成功 |
 | `npm run build` | 現行成功、`dist/` を生成 |
 | `npm run test:e2e` | 現行Chromium 102件成功 |
-| `npm run check` | AL-010で単体337件（14ファイル）、型検査、本番ビルド、Chromium E2E 102件がCloudで一括成功。AL-009基準から単体56件・E2E11件を追加 |
+| `npm run check` | AL-010で単体337件（14ファイル）、型検査、本番ビルド、Chromium E2E 102件がCloudと公開用Actionsで一括成功。AL-009基準から単体56件・E2E11件を追加。公開ファイルの一致も確認済み |
 | `npm audit --audit-level=high` | 報告された既知の脆弱性0件 |
 | `npm run dev` | 起動成功。HTTP 応答と Chromium で探索後の残り時間・物資更新を確認。ページエラー0件 |
 
@@ -103,12 +103,13 @@ Wiki調査用に `neoscavenger.fandom.com` を許可先へ追加済みで、ユ�
 
 ## GitHub と Pages 公開
 
-最新の公開: AL-009のイベント6件と持ち物・探索方法による分岐をコミット `e0894c0` として `main` へプッシュ。[Actions実行 38902164967](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38902164967) の一括検証・ビルド・Pages公開は成功。公開URLからTLS検証を有効にしたHTTP取得を行い、HTMLとJS/CSSの全2ファイルがCloudで検証済みの `dist/` とバイト単位で一致することを確認した。
+最新の公開: AL-010の軽傷と移動・探索・処置の連動をコミット `b7ddacb` として `main` へプッシュ。[Actions実行 38916196234](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38916196234) の一括検証・ビルド・Pages公開は成功。公開URLからTLS検証を有効にしたHTTP取得を行い、HTMLとJS/CSSの全2ファイルがCloudで検証済みの `dist/` とバイト単位で一致することを確認した。
 
 公開URLでのChromium操作確認は前回 `ERR_CERT_AUTHORITY_INVALID` で接続できず、今回は再実施していない。証明書検証は無効化していない。行動案内・六方向移動・保存復元などの実操作はCloud内とActionsのブラウザテストで検証済みであり、公開URLへの直接操作とは区別する。
 
 以下は初回公開からの履歴。
 
+- AL-009のイベント6件と持ち物・探索方法による分岐は `e0894c0` として公開済み。[Actions実行 38902164967](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38902164967) と当時の公開ファイル一致の確認は成功。
 - AL-008の地点ごとの物資保持と選択回収は `35cd97f` として公開済み。[Actions実行 38889079225](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38889079225) と当時の公開ファイル一致の確認は成功。
 - AL-007の8種のアイテムと容量制限は `9ce8aca` として公開済み。[Actions実行 38887128249](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38887128249) と当時の公開ファイル一致の確認は成功。
 - AL-006の探索2方式は `629fb16` として公開済み。[Actions実行 38885397949](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38885397949) と当時の公開ファイル一致の確認は成功。
