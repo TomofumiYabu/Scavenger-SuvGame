@@ -1,5 +1,5 @@
 import { eventById } from "../game/events";
-import { assessAction } from "../game/actions";
+import { assessAction, SEARCH_METHODS } from "../game/actions";
 import type { Stat } from "../game/actions";
 import {
   clock,
@@ -12,7 +12,7 @@ import {
   neighbors,
   tileAt,
 } from "../game/model";
-import type { Action, GameState, Item } from "../game/model";
+import type { Action, GameState, Item, SearchMode } from "../game/model";
 import type { SaveStore } from "../game/storage";
 import { icon } from "../icons";
 
@@ -24,7 +24,7 @@ export const shell = `
   <dialog id="help-dialog" aria-labelledby="help-title">
     <span class="eyebrow">FIELD MANUAL / 01</span><h2 id="help-title">この街で、生き延びる。</h2>
     <p>北東の通信塔へ向かい、<strong>スクラップ3個</strong>で救難信号を送ってください。残された時間は48時間です。</p>
-    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地を「探索」して水や食料を集めます。各地点は一度だけ探索できます。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。通常の行動は1時間かかります。廃墟・診療所・避難所で出来事に出会ったら、費用と危険を読んで選択してください。立ち去る選択は時間を使いません。</li><li>満腹度・水分が0だと体力が減ります。廃墟では負傷することもあります。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
+    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地で「手早く探す」（1時間）か「慎重に探す」（2時間）を選びます。慎重な探索は負傷せず、主な物資を1個多く得ます。どちらか一度でその地点は探索済みになります。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。探索以外の通常行動は1時間です。廃墟・診療所・避難所で出来事に出会ったら、費用と危険を読んで選択してください。立ち去る選択は時間を使いません。</li><li>満腹度・水分が0の時間ごとに、それぞれ体力が12減ります。廃墟の手早い探索では負傷することもあります。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
     <p class="muted">進行状況はこのブラウザに自動保存されます。Tab と Enter、またはタップ・クリックで操作できます。</p>
     <form method="dialog"><button class="button primary">探索に戻る ${icon("arrow")}</button></form>
   </dialog>
@@ -98,12 +98,13 @@ function guidance(action: Action, id: string): { disabled: string; details: stri
   const recovery = Object.entries(assessment.recovery).map(([key, amount]) => `${statNames[key as Stat]} +${amount}（実回復 +${Math.min(amount!, 100 - state[key as Stat])}）`);
   return {
     disabled: `${assessment.allowed ? "" : "disabled"} aria-describedby="${id}"`,
-    details: `<div id="${id}" class="action-details" tabindex="-1"><p class="action-cost">${[`${assessment.hours}時間`, ...supplies, ...costs].join(" / ")}</p>${rewards.length ? `<p class="action-effect">収穫：${rewards.join(" / ")}</p>` : ""}${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("")}${assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("")}</div>`,
+    details: `<div id="${id}" class="action-details" tabindex="-1"><p class="action-cost">${[`${assessment.hours}時間`, ...supplies, ...costs].join(" / ")}</p>${rewards.length ? `<p class="action-effect">収穫：${rewards.join(" / ")}</p>` : ""}${action.type === "search" ? `<p class="action-effect">探索による負傷：${assessment.injury ? `${assessment.injury.oneIn}分の1で体力 −${assessment.injury.damage}` : "0（なし）"}</p>` : ""}${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("")}${assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("")}</div>`,
   };
 }
 function actionButton(action: Action, label: string, glyph: string, style = "primary"): string {
-  const info = guidance(action, `guide-${action.type}`);
-  return `<button class="button ${style}" data-action="${action.type}" data-focus="${action.type}" ${info.disabled}>${icon(glyph)} ${label}</button>${info.details}`;
+  const key = action.type === "search" ? `search-${action.mode}` : action.type;
+  const info = guidance(action, `guide-${key}`);
+  return `<button class="button ${style}" data-action="${action.type}" ${action.type === "search" ? `data-search-mode="${action.mode}"` : ""} data-focus="${key}" ${info.disabled}>${icon(glyph)} ${label}</button>${info.details}`;
 }
 function location(): string {
   const tile = tileAt(selected);
@@ -115,7 +116,7 @@ function location(): string {
     <div class="location-copy"><span class="eyebrow">${here ? "現在地" : "選択中の地点"}</span><h2 id="location-title" tabindex="-1">${terrain.name}</h2><p>${terrain.detail}</p>
       <dl class="location-info"><div><dt>見つかる物</dt><dd>${terrain.finds}</dd></div><div><dt>注意事項</dt><dd>${terrain.risk}</dd></div></dl>
       <div class="location-actions" tabindex="-1" aria-label="現在地の行動">${here
-        ? actionButton({ type: "search" }, state.searched.includes(selected) ? "探索済み" : "周囲を探索する", "search") + actionButton({ type: "rest" }, "休息する", "rest", "secondary") + (selected === TOWER ? actionButton({ type: "signal" }, "救難信号を送る", "tower", "signal") : "")
+        ? `<p class="action-details">この地点の探索は、どちらか一度だけです。</p>` + (Object.keys(SEARCH_METHODS) as SearchMode[]).map(mode => actionButton({ type: "search", mode }, SEARCH_METHODS[mode].label, "search")).join("") + actionButton({ type: "rest" }, "休息する", "rest", "secondary") + (selected === TOWER ? actionButton({ type: "signal" }, "救難信号を送る", "tower", "signal") : "")
         : actionButton({ type: "move", target: selected }, "ここへ移動", "arrow") + `<button class="text-button back-button" data-action="current">${icon("location")} 現在地に戻る</button>`
       }</div>
     </div></section>`;

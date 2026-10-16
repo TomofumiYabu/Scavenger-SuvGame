@@ -13,6 +13,7 @@ export type Terrain =
   | "shelter"
   | "tower";
 export type Item = "water" | "food" | "bandage" | "scrap";
+export type SearchMode = "quick" | "careful";
 export type Status = "active" | "won" | "dead" | "lost";
 export type LogKind = "info" | "good" | "danger";
 export interface Tile {
@@ -41,7 +42,7 @@ export interface GameState {
 }
 export type Action =
   | { type: "move"; target: number }
-  | { type: "search" }
+  | { type: "search"; mode?: SearchMode }
   | { type: "rest" }
   | { type: "use"; item: Item }
   | { type: "signal" }

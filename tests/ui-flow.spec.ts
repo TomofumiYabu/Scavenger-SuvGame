@@ -135,11 +135,11 @@ for (const width of [320, 1280]) test(`通常操作はDOM・操作位置・復�
   await rest.scrollIntoViewIfNeeded(); await rest.focus(); const restY = await page.evaluate(() => scrollY);
   await page.keyboard.press("Enter"); await expect(rest).toBeFocused();
   expect(Math.abs(await page.evaluate(() => scrollY) - restY)).toBeLessThan(3);
-  const search = page.getByRole("button", { name: "周囲を探索する" });
+  const search = page.getByRole("button", { name: "手早く探す" });
   await search.focus(); const searchY = await page.evaluate(() => scrollY);
-  await page.keyboard.press("Enter"); await expect(page.locator("#guide-search")).toBeFocused();
+  await page.keyboard.press("Enter"); await expect(page.locator("#guide-search-quick")).toBeFocused();
   expect(Math.abs(await page.evaluate(() => scrollY) - searchY)).toBeLessThan(3);
-  await visibleInViewport(page.locator("#guide-search"));
+  await visibleInViewport(page.locator("#guide-search-quick"));
   const tile = page.locator('[data-tile="30"]'); await tile.scrollIntoViewIfNeeded(); await tile.focus();
   const tileY = await page.evaluate(() => scrollY); await page.keyboard.press("Enter");
   await expect(tile).toBeFocused(); expect(Math.abs(await page.evaluate(() => scrollY) - tileY)).toBeLessThan(3);
@@ -151,7 +151,7 @@ for (const width of [320, 1280]) test(`通常操作はDOM・操作位置・復�
 
 test("ヘルプ・新規探索・復旧のキャンセルは実際の起動ボタンとスクロールへ戻る", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 }); await page.goto("/");
-  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "手早く探す" }).click();
   await page.getByRole("button", { name: "休息する" }).click();
   await page.locator(".recovery summary").click();
   for (const command of ["help", "reset", "restore"]) {

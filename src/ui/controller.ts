@@ -1,4 +1,5 @@
 import { act, newGame } from "../game/engine";
+import { isSearchMode } from "../game/actions";
 import type { Action, ChoiceId, EventId, Item } from "../game/model";
 import { SaveStore } from "../game/storage";
 import { captureFocus, connectDialogs, restoreFocus, reveal } from "./focus";
@@ -57,7 +58,8 @@ export function startGame(app: HTMLElement): void {
     if (command === "show-ending") { reveal(game.querySelector("#ending-title")); return; }
     let action: Action | undefined;
     if (command === "move") action = { type: "move", target: selected };
-    if (command === "search" || command === "rest" || command === "signal") action = { type: command };
+    if (command === "search" && isSearchMode(button.dataset.searchMode)) action = { type: "search", mode: button.dataset.searchMode };
+    if (command === "rest" || command === "signal") action = { type: command };
     if (button.dataset.item) action = { type: "use", item: button.dataset.item as Item };
     if (button.dataset.choice) action = { type: "choose", event: button.dataset.event as EventId, tile: Number(button.dataset.eventTile), choice: button.dataset.choice as ChoiceId };
     if (!action) return;

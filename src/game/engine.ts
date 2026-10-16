@@ -1,5 +1,5 @@
 import { eventChoice, eventForTerrain } from "./events";
-import { actionTerms, assessAction, cap, RUINS_DAMAGE, STARVATION_DAMAGE } from "./actions";
+import { actionTerms, assessAction, projectStats } from "./actions";
 import {
   ITEM_NAMES,
   MAX_TURNS,
@@ -50,8 +50,10 @@ export function act(previous: GameState, action: Action): GameState {
   const state = structuredClone(previous);
   const terms = actionTerms(previous, action);
   state.turn += terms.hours;
-  for (const key of ["health", "hunger", "thirst", "energy"] as const) {
-    state[key] = cap(state[key] + (terms.recovery[key] ?? 0));
+  let injuryDamage = 0;
+  if (terms.advanceRng) {
+    state.rng = (Math.imul(state.rng, 1664525) + 1013904223) >>> 0;
+    if (terms.injury && state.rng % terms.injury.oneIn === 0) injuryDamage = terms.injury.damage;
   }
   for (const [item, count] of Object.entries(terms.supplies) as [Item, number][]) state.inventory[item] -= count;
   switch (action.type) {
@@ -69,17 +71,14 @@ export function act(previous: GameState, action: Action): GameState {
     }
     case "search": {
       state.searched.push(state.position);
-      const terrain = tileAt(state.position).terrain;
       const found = terms.rewards;
       const descriptions: string[] = [];
       for (const item of Object.keys(found) as Item[]) {
         const count = found[item]!;
         descriptions.push(`${ITEM_NAMES[item]} ×${count}`);
       }
-      note(state, `${descriptions.join("、")}を見つけた。`, "good");
-      state.rng = (Math.imul(state.rng, 1664525) + 1013904223) >>> 0;
-      if (terrain === "ruins" && state.rng % 3 === 0) {
-        state.health = cap(state.health - RUINS_DAMAGE);
+      note(state, `${action.mode === "careful" ? "慎重に探し、" : ""}${descriptions.join("、")}を見つけた。`, "good");
+      if (injuryDamage) {
         note(state, "崩れた足場で負傷した。体力 −10。", "danger");
       }
       break;
@@ -110,10 +109,7 @@ export function act(previous: GameState, action: Action): GameState {
         const costs = Object.entries(terms.costs).map(([key, amount]) => `${names[key as keyof typeof names]} −${amount}`);
         note(state, `${terms.hours}時間。${[...recovery, ...costs].join("、")}。`);
       }
-      if (choice.injury) {
-        state.rng = (Math.imul(state.rng, 1664525) + 1013904223) >>> 0;
-        if (state.rng % 3 === 0) { state.health = cap(state.health - RUINS_DAMAGE); note(state, "棚が崩れ、飛び散った破片で負傷した。体力 −10。", "danger"); }
-      }
+      if (injuryDamage) note(state, "棚が崩れ、飛び散った破片で負傷した。体力 −10。", "danger");
       break;
     }
     case "signal": {
@@ -125,15 +121,14 @@ export function act(previous: GameState, action: Action): GameState {
       break;
     }
   }
-  for (const key of ["health", "hunger", "thirst", "energy"] as const) state[key] = cap(state[key] - (terms.costs[key] ?? 0));
+  const { after, depletion } = projectStats(previous, terms, injuryDamage);
+  Object.assign(state, after);
   for (const [item, count] of Object.entries(terms.rewards) as [Item, number][]) state.inventory[item] += count;
-  if (terms.hours > 0 && state.hunger === 0) {
-    state.health = cap(state.health - STARVATION_DAMAGE);
-    note(state, "空腹で力が入らない。体力 −12。", "danger");
+  if (depletion.hunger > 0) {
+    note(state, `空腹で力が入らない。体力 −${depletion.hunger}。`, "danger");
   }
-  if (terms.hours > 0 && state.thirst === 0) {
-    state.health = cap(state.health - STARVATION_DAMAGE);
-    note(state, "ひどい渇きが体を蝕む。体力 −12。", "danger");
+  if (depletion.thirst > 0) {
+    note(state, `ひどい渇きが体を蝕む。体力 −${depletion.thirst}。`, "danger");
   }
   if (state.health === 0) {
     state.status = "dead";

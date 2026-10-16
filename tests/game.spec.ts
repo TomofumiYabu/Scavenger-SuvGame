@@ -18,9 +18,9 @@ test("探索、移動、アイテム使用、自動保存からの復元", async
     "あなたは、まだ。",
   );
   await expect(page.getByTestId("position")).toHaveText("B6");
-  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "手早く探す" }).click();
   await expect(page.getByTestId("item-water")).toHaveText("×3");
-  await expect(page.getByRole("button", { name: /^探索済み/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "手早く探す" })).toBeDisabled();
   await move(page, "B5");
   await page.getByRole("button", { name: "何も取らず立ち去る" }).click();
   await page.getByRole("button", { name: "飲料水を使う" }).click();
@@ -35,12 +35,12 @@ test("探索、移動、アイテム使用、自動保存からの復元", async
 
 test("UIから資源を集めて脱出し、終了状態も保存する", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "手早く探す" }).click();
   await move(page, "B5");
   await page.getByRole("button", { name: "何も取らず立ち去る" }).click();
-  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "手早く探す" }).click();
   await move(page, "C5");
-  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "手早く探す" }).click();
   await expect(page.getByTestId("item-scrap")).toHaveText("×3");
   await page.getByRole("button", { name: "飲料水を使う" }).click();
   await page.getByRole("button", { name: "保存食を使う" }).click();
@@ -63,7 +63,7 @@ test("新しい探索の確認をキャンセルでき、承認時だけリセ�
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "手早く探す" }).click();
   await page.getByRole("button", { name: "新しい探索", exact: true }).click();
   await page.getByRole("button", { name: "キャンセル" }).click();
   await expect(page.getByTestId("remaining")).toHaveText("47");
@@ -83,7 +83,7 @@ test("破損したセーブから安全に再開する", async ({ page }) => {
   await expect(page.getByRole("status")).toContainText(
     "保存データを読み込めなかった",
   );
-  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "手早く探す" }).click();
   await expect(page.getByTestId("remaining")).toHaveText("47");
 });
 
@@ -97,7 +97,7 @@ test("ストレージ禁止でも通知してプレイを継続する", async ({
   });
   await page.goto("/");
   await expect(page.getByRole("status")).toContainText("保存できません");
-  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "手早く探す" }).click();
   await expect(page.getByTestId("remaining")).toHaveText("47");
   await expect(page.getByRole("status")).toContainText(
     "自動保存できませんでした",
@@ -115,7 +115,7 @@ test("スマートフォン幅で横スクロールせず移動と探索がで�
     ),
   ).toBe(true);
   await move(page, "C6");
-  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "手早く探す" }).click();
   await expect(page.getByTestId("item-scrap")).toHaveText("×1");
   await page.screenshot({ path: "test-results/mobile.png", fullPage: true });
 });
@@ -220,10 +220,10 @@ test("行動の理由と回復・消費を示し、キーボード使用後も�
   saved.inventory.bandage = 0;
   await page.addInitScript(saved => localStorage.setItem("afterlight.save.v1", JSON.stringify(saved)), saved);
   await page.goto("/");
-  const search = page.getByRole("button", { name: "周囲を探索する" });
+  const search = page.getByRole("button", { name: "手早く探す" });
   await expect(search).toBeDisabled();
   await expect(search).toHaveAccessibleDescription(/必要 10/);
-  await expect(page.locator("#guide-search .action-reason")).toBeVisible();
+  await expect(page.locator("#guide-search-quick .action-reason")).toBeVisible();
   const bandage = page.getByRole("button", { name: "包帯を使う" });
   await expect(bandage).toBeDisabled();
   await expect(bandage).toHaveAccessibleDescription(/所持 0個/);
@@ -271,8 +271,8 @@ for (const width of [320, 390]) test(`危険と行動不能の説明が${width}p
   await page.setViewportSize({ width, height: 844 });
   await page.addInitScript(saved => localStorage.setItem("afterlight.save.v1", JSON.stringify(saved)), saved);
   await page.goto("/");
-  await expect(page.locator("#guide-search")).toContainText("負傷する可能性");
-  await expect(page.locator("#guide-search")).toContainText("体力が尽きます");
+  await expect(page.locator("#guide-search-quick")).toContainText("負傷する可能性");
+  await expect(page.locator("#guide-search-quick")).toContainText("体力が尽きます");
   await expect(page.getByRole("button", { name: "保存食を使う" })).toHaveAccessibleDescription(/所持 0個/);
   const layout = await page.locator(".action-details").evaluateAll(elements => ({
     inside: elements.every(element => { const r = element.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }),
@@ -288,7 +288,7 @@ for (const width of [320, 390]) test(`備蓄庫の選択と再読込・キーボ
   await page.goto("/"); await move(page, "B5");
   const title = page.getByRole("heading", { name: "崩れた備蓄庫" });
   await expect(title).toBeFocused();
-  await expect(page.getByRole("button", { name: "周囲を探索する" })).toHaveAccessibleDescription(/選択を先に/);
+  await expect(page.getByRole("button", { name: "手早く探す" })).toHaveAccessibleDescription(/選択を先に/);
   await expect(page.getByRole("button", { name: "飲料水を使う" })).toBeDisabled();
   const safe = page.getByRole("button", { name: "入口の箱を回収する" });
   await expect(safe).toHaveAccessibleDescription(/1時間.*気力 −4.*飲料水 \+1個.*保存食 \+1個/);
@@ -316,7 +316,7 @@ test("未来の主保存は旧保存があっても保護し、通常プレイ�
   await page.goto("/");
   await expect(page.getByRole("status")).toContainText("対応していません");
   await expect(page.getByTestId("remaining")).toHaveText("48");
-  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "手早く探す" }).click();
   expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBe(original);
   await page.reload(); await expect(page.getByTestId("remaining")).toHaveText("48");
   expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBe(original);
@@ -335,7 +335,7 @@ test("旧保存は移行後も原文を保持し、直前の保存を確認し�
   await page.goto("/");
   await expect(page.getByTestId("remaining")).toHaveText("39");
   expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBeNull();
-  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "手早く探す" }).click();
   await page.getByRole("button", { name: "飲料水を使う" }).click();
   await expect(page.getByTestId("remaining")).toHaveText("37");
   expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v1"))).toBe(legacy);
@@ -354,7 +354,7 @@ test("旧保存は移行後も原文を保持し、直前の保存を確認し�
 
 test("バックアップ容量エラーで主保存を保護し、再読込で最後の保存へ戻る", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "手早く探す" }).click();
   const original = await page.evaluate(() => localStorage.getItem("afterlight.save.v2"));
   await page.evaluate(() => {
     const write = Storage.prototype.setItem;
@@ -384,7 +384,7 @@ test("原文を退避できないリセットは元の保存を置き換えな�
   await page.getByRole("button", { name: "新しい探索", exact: true }).click();
   await page.getByRole("button", { name: "新しい探索を始める" }).click();
   await expect(page.getByRole("status")).toContainText("保存の切り替えを確認できませんでした");
-  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "手早く探す" }).click();
   expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBe(original);
 });
 
