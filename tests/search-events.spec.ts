@@ -1,3 +1,4 @@
+import { withoutWound } from "./fixtures";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { act, newGame } from "../src/game/engine";
@@ -168,12 +169,12 @@ test("不正な選択と解決済みの古いボタンは再消費も保存も�
 test("内容版4の地面・選択待ちを読取専用で引き継ぎ、最初の確定時に原文を正確に退避する", async ({ page }) => {
   const state = at(29); state.turn = 9; state.pendingEvent = { id: "collapsed-cache", tile: 29 };
   state.ground = { 29: { water: 2 }, 30: { coffee: 1 } };
-  const raw = JSON.stringify({ ...state, contentVersion: 4 }, null, 2);
+  const raw = JSON.stringify({ ...withoutWound(state), contentVersion: 4 }, null, 2);
   await seed(page, raw); await page.goto("/"); await expect(page.locator("#event-title")).toBeFocused();
   await expect(page.locator(".event-search-context")).toHaveCount(0);
   expect(await storage(page)).toEqual({ [key]: raw }); await page.reload(); expect(await storage(page)).toEqual({ [key]: raw });
   await choice(page, "leave").click(); const after = await saved(page);
-  expect(after.contentVersion).toBe(5); expect(after.turn).toBe(9); expect(after.ground).toEqual(state.ground);
+  expect(after.contentVersion).toBe(6); expect(after.turn).toBe(9); expect(after.ground).toEqual(state.ground);
   expect(after.resolvedEvents).toContain("collapsed-cache");
   expect((await storage(page))[`${key}.original.0`]).toBe(raw); expect((await storage(page))[`${key}.backup`]).toBe(raw);
 });

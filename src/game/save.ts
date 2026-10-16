@@ -1,3 +1,4 @@
+import { isWound } from "./wounds";
 import { ITEM_IDS, LEGACY_ITEM_IDS } from "./items";
 import { eventById, EVENTS } from "./events";
 import { isSearchMode } from "./actions";
@@ -17,12 +18,12 @@ const tileList = (value: unknown): value is number[] =>
   new Set(value).size === value.length &&
   value.every((id) => integer(id, 0, SIZE * SIZE - 1));
 
-const SUPPORTED_CONTENT = [1, 2, 3, 4, 5];
-const hasModernItems = (s: Record<string, unknown>): boolean => s.version === 2 && integer(s.contentVersion, 3, 5);
-const hasGround = (s: Record<string, unknown>): boolean => s.version === 2 && integer(s.contentVersion, 4, 5);
+const SUPPORTED_CONTENT = [1, 2, 3, 4, 5, 6];
+const hasModernItems = (s: Record<string, unknown>): boolean => s.version === 2 && integer(s.contentVersion, 3, 6);
+const hasGround = (s: Record<string, unknown>): boolean => s.version === 2 && integer(s.contentVersion, 4, 6);
 // Content 1 knew only the cache; content 2–4 knew the original movement events.
 const ORIGINAL_EVENT_IDS = [EVENT_ID, "clinic-supplies", "shelter-embers"];
-const allowedEvents = (content: unknown) => EVENTS.filter(event => content === 5 || (content === 1 ? event.id === EVENT_ID : ORIGINAL_EVENT_IDS.includes(event.id)));
+const allowedEvents = (content: unknown) => EVENTS.filter(event => (content === 5 || content === 6) || (content === 1 ? event.id === EVENT_ID : ORIGINAL_EVENT_IDS.includes(event.id)));
 const supportedEvent = (id: string, content: unknown): boolean => allowedEvents(content).some(event => event.id === id);
 
 export type SaveResult = { kind: "valid" | "migrated"; state: GameState } | { kind: "corrupt" | "unsupported" };
@@ -32,6 +33,9 @@ export function decodeSave(raw: string): SaveResult {
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { return { kind: "corrupt" }; }
   if (record(parsed) && (parsed.version !== 1 && parsed.version !== 2 || parsed.version === 2 && !SUPPORTED_CONTENT.includes(parsed.contentVersion as number))) return { kind: "unsupported" };
+  // Even old schemas must not silently discard a future injury state.
+  if (record(parsed) && typeof parsed.wound === "string" && !isWound(parsed.wound)) return { kind: "unsupported" };
+  if (record(parsed) && (parsed.version === 1 || parsed.contentVersion !== 6) && parsed.wound === "minor") return { kind: "unsupported" };
   if (record(parsed) && parsed.version === 2) {
     if (Array.isArray(parsed.resolvedEvents) && parsed.resolvedEvents.some(id => typeof id === "string" && !supportedEvent(id, parsed.contentVersion))) return { kind: "unsupported" };
     if (record(parsed.pendingEvent) && typeof parsed.pendingEvent.id === "string" && !supportedEvent(parsed.pendingEvent.id, parsed.contentVersion)) return { kind: "unsupported" };
@@ -47,7 +51,7 @@ export function decodeSave(raw: string): SaveResult {
     }
   }
   const state = validate(raw);
-  return state ? { kind: record(parsed) && (parsed.version === 1 || parsed.contentVersion !== 5) ? "migrated" : "valid", state } : { kind: "corrupt" };
+  return state ? { kind: record(parsed) && (parsed.version === 1 || parsed.contentVersion !== 6) ? "migrated" : "valid", state } : { kind: "corrupt" };
 }
 export function deserialize(raw: string): GameState | null {
   const result = decodeSave(raw);
@@ -64,6 +68,9 @@ function validate(raw: string): GameState | null {
       !integer(s.rng, 0, 0xffffffff)
     )
       return null;
+    // Current content requires the field. Historical saves may omit it; redundant
+    // "none" is accepted, while malformed or future values fail closed.
+    if ((s.version === 2 && s.contentVersion === 6 || "wound" in s) && !isWound(s.wound)) return null;
     for (const key of ["health", "hunger", "thirst", "energy"])
       if (!integer(s[key], 0, 100)) return null;
     if (!record(s.inventory)) return null;
@@ -131,7 +138,8 @@ function validate(raw: string): GameState | null {
     // hex ring for square-grid saves, without inferring an unavailable route.
     return {
       ...s,
-      version: 2, contentVersion: 5,
+      version: 2, contentVersion: 6,
+      wound: isWound(s.wound) ? s.wound : "none",
       ground: hasGround(s) ? s.ground : {},
       inventory: { snack: 0, electrolyte: 0, medkit: 0, coffee: 0, ...s.inventory },
       pendingEvent: s.version === 1 ? null : s.pendingEvent,

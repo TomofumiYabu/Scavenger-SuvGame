@@ -16,6 +16,7 @@ import {
 import type { Action, GameState, Item, SearchMode } from "../game/model";
 import type { SaveStore } from "../game/storage";
 import { icon } from "../icons";
+import { WOUND_ENERGY_PER_HOUR, WOUND_NAMES } from "../game/wounds";
 
 import { escape, outcomePanel } from "./outcome";
 import type { Outcome } from "./outcome";
@@ -26,6 +27,7 @@ export const shell = `
     <span class="eyebrow">FIELD MANUAL / 01</span><h2 id="help-title">この街で、生き延びる。</h2>
     <p>北東の通信塔へ向かい、<strong>スクラップ3個</strong>で救難信号を送ってください。残された時間は48時間です。</p>
     <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地で「手早く探す」（1時間）か「慎重に探す」（2時間）を選びます。慎重な探索は負傷せず、主な物資を1個多く、地形ごとの追加物資も1個得ます。どちらか一度でその地点は探索済みになります。見つけた物資は地点に残るので、現在地の「地点に残した物」から必要な分を拾います。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。探索以外の通常行動は1時間です。出来事は全6件です。廃墟・診療所・避難所では移動後、道路・緑地・通信塔では探索後に出会います（各1回）。探索後の出来事では探索方式で選択の費用・収穫が変わります。探索ボタンの予告を読み、出来事では費用と危険を確認してください。立ち去る選択は0時間・消費なしです。</li><li>満腹度・水分が0の時間ごとに、それぞれ体力が12減ります。廃墟の手早い探索では負傷することもあります。</li><li>バックパックの容量は24です。容量は各物資に表示されます。探索・出来事で見つけた物資は地点に残ります。入る分だけ拾い、バックパックの「1個置く」で空きを作れます。拾う・置くは0時間。置いた物も残り、移動・再訪・再読込でも失われません。出来事の選択中や探索終了後は拾う・置くを行えません。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
+    <p>廃墟の手早い探索・備蓄庫の奥では、体力−10と軽い負傷の危険があります。負傷中は移動・探索の1時間ごとに気力を追加で2消費します（表示費用に含む）。慎重な探索なら探索による負傷を避けられます。包帯・救急キット、診療所の処置、避難所の休息・睡眠で治療でき、体力100でも治療できます。避難所以外の休息や、食事・飲料による回復では治りません。包帯は雨水のろ過にも使うため、治療用に残すかを選びましょう。</p>
     <p class="muted">進行状況はこのブラウザに自動保存されます。Tab と Enter、またはタップ・クリックで操作できます。</p>
     <form method="dialog"><button class="button primary">探索に戻る ${icon("arrow")}</button></form>
   </dialog>
@@ -64,6 +66,10 @@ function stat(
     <div class="stat-track" role="meter" aria-label="${label}" aria-valuenow="${value}" aria-valuemin="0" aria-valuemax="100"><span style="width:${value}%"></span></div>
     <span class="stat-caption">${value <= 25 ? "低下しています" : key === "health" ? "生き延びるために" : key === "hunger" ? "食料で回復" : key === "thirst" ? "飲料水で回復" : "休息で回復"}</span>
   </div>`;
+}
+
+function condition(): string {
+  return `<div class="condition ${state.wound === "minor" ? "condition-wounded" : ""}" data-testid="condition" role="group" aria-label="現在の負傷状態"><h3>現在の状態：${WOUND_NAMES[state.wound]}</h3><p>${state.wound === "minor" ? `移動・探索は1時間ごとに気力 −${WOUND_ENERGY_PER_HOUR}追加（表示費用に含む）。` : "移動・探索への追加消費なし。"}</p><p ${state.wound === "minor" ? "" : "hidden"}>治療：包帯・救急キット、診療所、避難所の休息・睡眠。</p><details><summary>負傷と治療について</summary><p>慎重な探索なら探索による負傷を避けられます。軽い負傷は重複せず、自然悪化しません。</p><p>体力100でも治療できます。避難所以外の休息や食事・飲料による回復では治りません。</p><p>包帯は雨水のろ過にも使います。治療用に残すか、補給に使うか選べます。</p></details></div>`;
 }
 
 function map(): string {
@@ -105,9 +111,12 @@ function guidance(action: Action, id: string): { disabled: string; details: stri
   const rewards = Object.entries(assessment.rewards).map(([key, amount]) => `${ITEM_NAMES[key as Item]} +${amount}個`);
   const recovery = Object.entries(assessment.recovery).map(([key, amount]) => `${statNames[key as Stat]} +${amount}（実回復 +${Math.min(amount!, 100 - state[key as Stat])}）`);
   const capacity = assessment.loadChange === 0n ? [] : [`容量 ${assessment.loadChange > 0n ? "+" : "−"}${assessment.loadChange < 0n ? -assessment.loadChange : assessment.loadChange}${assessment.loadAfter >= 0n ? `（${assessment.load} → ${assessment.loadAfter} / ${CAPACITY}）` : ""}`];
+  const woundEffect = assessment.woundEnergyCost > 0 ? `<p class="action-effect">軽い負傷による気力 −${assessment.woundEnergyCost}（1時間ごとに −${WOUND_ENERGY_PER_HOUR}、上の費用に含む）</p>` : "";
+  const treatment = assessment.treatsWound ? `<p class="action-effect">軽い負傷を治療${state.wound === "minor" ? "（軽い負傷 → 負傷なし）" : "（現在は負傷なし）"}。体力の実回復が0でも治療できます。</p>` : action.type === "rest" ? '<p class="action-effect">避難所以外の休息では、軽い負傷は治りません。</p>' : "";
+  const injury = assessment.injury ? `<p class="action-effect">${action.type === "search" ? "探索による負傷" : "負傷の危険"}：${assessment.injury.oneIn}分の1で体力 −${assessment.injury.damage}・軽い負傷（重複しません）。新たな負傷の追加消費は次の移動・探索からです。</p>` : action.type === "search" ? '<p class="action-effect">探索による負傷：0（なし）</p>' : "";
   return {
     disabled: `${assessment.allowed ? "" : "disabled"} aria-describedby="${id}"`,
-    details: `<div id="${id}" class="action-details" tabindex="-1"><p class="action-cost">${[`${assessment.hours}時間`, ...supplies, ...costs, ...capacity].join(" / ")}</p>${rewards.length ? `<p class="action-effect">バックパックへ：${rewards.join(" / ")}</p>` : ""}${groundRewards.length ? `<p class="action-effect">${action.type === "drop" ? "地点に置く" : "発見→地点に残る"}：${groundRewards.join(" / ")}</p>` : ""}${action.type === "search" ? `<p class="action-effect">探索による負傷：${assessment.injury ? `${assessment.injury.oneIn}分の1で体力 −${assessment.injury.damage}` : "0（なし）"}</p>` : ""}${searchHint}${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("")}${assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("")}</div>`,
+    details: `<div id="${id}" class="action-details" tabindex="-1"><p class="action-cost">${[`${assessment.hours}時間`, ...supplies, ...costs, ...capacity].join(" / ")}</p>${woundEffect}${rewards.length ? `<p class="action-effect">バックパックへ：${rewards.join(" / ")}</p>` : ""}${groundRewards.length ? `<p class="action-effect">${action.type === "drop" ? "地点に置く" : "発見→地点に残る"}：${groundRewards.join(" / ")}</p>` : ""}${injury}${searchHint}${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${treatment}${assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("")}${assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("")}</div>`,
   };
 }
 function actionButton(action: Action, label: string, glyph: string, style = "primary"): string {
@@ -175,6 +184,7 @@ function ending(): string {
     <div data-region="encounter">${state.pendingEvent ? eventPanel() : outcome ? outcomePanel(outcome) : ""}</div>
     <div class="workspace"><aside class="survivor panel" aria-labelledby="survivor-title"><div class="panel-overline">SURVIVOR / 01</div><div class="survivor-id"><div class="survivor-avatar"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 58c0-17 6-24 18-24s18 7 18 24M22 34c-8-17-4-28 10-28s18 11 10 28Z" fill="currentColor"/><path d="M24 20h16l-3 12H27Z" fill="#202720"/><path d="M30 39v16m7-16 5 15" stroke="#202720" stroke-width="3"/></svg></div><h2 id="survivor-title">名前のない旅人<small>${active ? "● 生存中" : state.status === "won" ? "● 脱出成功" : "探索終了"}</small></h2></div>
       <div class="stats">${stat("health", "体力", "health")}${stat("hunger", "満腹度", "food")}${stat("thirst", "水分", "water")}${stat("energy", "気力", "energy")}</div>
+      ${condition()}
       <div class="mission"><span class="eyebrow">YOUR OBJECTIVE</span><h3>${icon("tower")} 最後の救難信号</h3><p>北東の通信塔に到達し、<br>送信機を修理する。</p><div><span>スクラップ</span><strong>${String(Math.min(state.inventory.scrap, 3)).padStart(2, "0")} <small>/ 03</small></strong></div><div class="mission-progress"><span style="width:${Math.min((state.inventory.scrap / 3) * 100, 100)}%"></span></div><span class="mission-coordinate">目標地点 G1 ↗</span></div>
     </aside>
     <section class="map-panel panel" aria-labelledby="map-title"><div class="section-heading"><div><span class="eyebrow">EXCLUSION ZONE</span><h2 id="map-title">第07隔離区域</h2></div><div class="map-coordinate">${icon("location")}現在地 <strong data-testid="position">${coordinates(state.position)}</strong></div></div>${map()}<div class="map-footer"><span>${icon("location")} 地点を選択して、次の行動を決める</span><span>N ↑</span></div></section>

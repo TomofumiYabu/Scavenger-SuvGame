@@ -104,7 +104,7 @@ test("12件上限でも負傷と死亡を示し結果から終了・再開始へ
   await seed(page, state); await page.goto("/");
   await page.getByRole("button", { name: "棚の奥まで踏み込む" }).click();
   const panel = page.locator(".outcome-panel");
-  await expect(panel).toContainText("棚が崩れ、飛び散った破片で負傷した。体力 −10。");
+  await expect(panel).toContainText("棚が崩れ、飛び散った破片で軽い負傷を負った。体力 −10。");
   await expect(panel).toContainText("体力 −10（10 → 0）");
   await expect(panel).toContainText("探索は終了しました。");
   await page.getByRole("button", { name: "終了の詳細へ" }).focus(); await page.keyboard.press("Enter");

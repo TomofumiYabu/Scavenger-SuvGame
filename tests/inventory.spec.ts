@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import { act, newGame } from "../src/game/engine";
 import { ITEMS, ITEM_IDS } from "../src/game/items";
 import { neighbors } from "../src/game/model";
-import { legacyInventory, withoutGround } from "./fixtures";
+import { legacyInventory, withoutGround, withoutWound } from "./fixtures";
 
 const key = "afterlight.save.v2";
 async function seed(page: Page, raw: string) {
@@ -67,7 +67,7 @@ test("content2の過積載を保持し、読込と拾う拒否は書かず、使
   await page.setViewportSize({ width: 320, height: 900 });
   const state = newGame(); state.turn = 11; state.inventory.water = Number.MAX_SAFE_INTEGER; state.inventory.scrap = Number.MAX_SAFE_INTEGER;
   state.log = [{ turn: 11, text: "前の探索の荷物を保持する", kind: "info" }];
-  const original = JSON.stringify({ ...withoutGround(state), contentVersion: 2, inventory: legacyInventory(state.inventory) }, null, 2);
+  const original = JSON.stringify({ ...withoutWound(withoutGround(state)), contentVersion: 2, inventory: legacyInventory(state.inventory) }, null, 2);
   await seed(page, original); await page.goto("/");
   await expect(page.getByTestId("item-water")).toHaveText(`×${Number.MAX_SAFE_INTEGER}`);
   await expect(page.getByTestId("item-snack")).toHaveText("×0");

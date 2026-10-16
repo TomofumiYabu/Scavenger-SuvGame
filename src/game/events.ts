@@ -12,6 +12,7 @@ export interface EventChoice {
   supplies?: Partial<Record<Item, number>>;
   rewards: Partial<Record<Item, number>>;
   injury: boolean;
+  treatsWound?: boolean;
   outcome: string;
   careful?: Partial<Pick<EventChoice, "detail" | "hours" | "costs" | "rewards" | "outcome">>;
 }
@@ -40,7 +41,7 @@ const CLINIC_EVENT: GameEvent = {
   discovery: "診療所の奥に、清潔な処置台と封の残った包帯を見つけた。",
   story: "窓から差す光が、金属の処置台を照らしている。布をかぶせた棚には、まだ封の開いていない包帯。持ち水で傷を洗うか、包帯を旅の備えにするか。廊下の時計だけが止まっている。",
   choices: [
-    { id: "treat", label: "持ち水で傷を洗い処置する", detail: "飲料水を1個使い、その場で体力を回復する。包帯は持ち出さない。", hours: 1, costs: { energy: 4, hunger: 3, thirst: 4 }, recovery: { health: 35 }, supplies: { water: 1 }, rewards: {}, injury: false, outcome: "飲料水 ×1で傷を洗い、処置台で手当てした。" },
+    { id: "treat", treatsWound: true, label: "持ち水で傷を洗い処置する", detail: "飲料水を1個使い、その場で体力を回復し、軽い負傷を治療する。包帯は持ち出さない。", hours: 1, costs: { energy: 4, hunger: 3, thirst: 4 }, recovery: { health: 35 }, supplies: { water: 1 }, rewards: {}, injury: false, outcome: "飲料水 ×1で傷を洗い、処置台で手当てした。" },
     { id: "pack", label: "包帯をまとめて確保する", detail: "棚の奥まで手を伸ばし、あとで使える包帯を地面にまとめる。拾う物はあとで選べる。今の傷は回復しない。", hours: 1, costs: { energy: 10, hunger: 5, thirst: 6 }, rewards: { bandage: 2 }, injury: false, outcome: "棚の包帯 ×2を地面にまとめた。拾えば次の負傷に備えられる。" },
     { id: "leave", label: "何も取らず立ち去る", detail: "処置台を離れて先へ進む。時間も資源も使わない。", hours: 0, costs: {}, rewards: {}, injury: false, outcome: "処置台には手を付けず、先へ進むことにした。" },
   ],
@@ -52,7 +53,7 @@ const SHELTER_EVENT: GameEvent = {
   story: "帰り着いた部屋で、灰の下に赤い点を見つけた。炉に手をかざすと、かすかな熱がある。手持ちの食料と水を温めるか、この暖かさが残る間に体を休めるか。外では風が戸を鳴らしている。",
   choices: [
     { id: "meal", label: "食料と水を温めて食べる", detail: "保存食と飲料水を1個ずつ使う。温かな食事で満腹度・水分・気力を回復する。", hours: 1, costs: { hunger: 3, thirst: 4 }, recovery: { hunger: 50, thirst: 35, energy: 10 }, supplies: { food: 1, water: 1 }, rewards: {}, injury: false, outcome: "保存食 ×1と飲料水 ×1を温め、炉のそばで食べた。" },
-    { id: "sleep", label: "火のそばで眠る", detail: "所持品を使わず、気力と体力を回復する。眠る間も空腹と渇きは進む。", hours: 1, costs: { hunger: 8, thirst: 10 }, recovery: { energy: 55, health: 12 }, rewards: {}, injury: false, outcome: "消えかけの火を囲み、短い眠りに身を委ねた。" },
+    { id: "sleep", treatsWound: true, label: "火のそばで眠る", detail: "所持品を使わず、気力と体力を回復し、軽い負傷を治療する。眠る間も空腹と渇きは進む。", hours: 1, costs: { hunger: 8, thirst: 10 }, recovery: { energy: 55, health: 12 }, rewards: {}, injury: false, outcome: "消えかけの火を囲み、短い眠りに身を委ねた。" },
     { id: "leave", label: "何もせず立ち去る", detail: "熾火を見送り、先へ進む。時間も資源も使わない。", hours: 0, costs: {}, rewards: {}, injury: false, outcome: "火には手を付けず、避難所を出ることにした。" },
   ],
 };
@@ -73,8 +74,8 @@ const RAINWATER_EVENT: GameEvent = {
   discovery: "木陰に雨水回収槽が残っている。底には泥が沈み、縁に細い汲み口が見える。",
   story: "葉の下で、古い回収槽に雨水がたまっている。底の泥を巻き上げないように汲むか、手持ちの包帯をフィルターにして多めに取るか。水場の周囲には、昔使われた容器が並んでいる。",
   choices: [
-    { id: "filter", label: "包帯をフィルターにする", detail: "手持ちの包帯を汲み口に固定して泥を除き、多めの水を確保する。包帯は使い切る。", hours: 1, costs: { energy: 4, hunger: 3, thirst: 4 }, supplies: { bandage: 1 }, rewards: { water: 2 }, injury: false, outcome: "包帯 ×1をフィルターに使い、飲料水 ×2を地面にまとめた。包帯は使い切った。" },
-    { id: "draw", label: "底の水を避けて汲む", detail: "泥を巻き上げないように、細い汲み口から少しずつ水を取る。包帯は使わない。", hours: 1, costs: { energy: 8, hunger: 3, thirst: 4 }, rewards: { water: 1 }, injury: false, outcome: "底の水を避けて汲み、飲料水 ×1を地面にまとめた。", careful: { detail: "慎重な探索で汲み口を整え、容器の奥に封の残る電解質飲料も見つけてある。追加の時間や消耗なしでまとめられる。", hours: 0, costs: {}, rewards: { water: 1, electrolyte: 1 }, outcome: "慎重な探索で整えた汲み口から飲料水 ×1を取り、見つけておいた未開封の電解質飲料 ×1とともに、追加の時間をかけず地面にまとめた。" } },
+    { id: "filter", label: "包帯をフィルターにする", detail: "手持ちの包帯を汲み口に固定して泥を除き、多めの水を確保する。包帯は使い切るため治療に残せず、この行動では負傷も治らない。", hours: 1, costs: { energy: 4, hunger: 3, thirst: 4 }, supplies: { bandage: 1 }, rewards: { water: 2 }, injury: false, outcome: "包帯 ×1をフィルターに使い、飲料水 ×2を地面にまとめた。包帯は使い切った。" },
+    { id: "draw", label: "底の水を避けて汲む", detail: "泥を巻き上げないように、細い汲み口から少しずつ水を取る。治療用の包帯を残せる。", hours: 1, costs: { energy: 8, hunger: 3, thirst: 4 }, rewards: { water: 1 }, injury: false, outcome: "底の水を避けて汲み、飲料水 ×1を地面にまとめた。", careful: { detail: "慎重な探索で汲み口を整え、容器の奥に封の残る電解質飲料も見つけてある。追加の時間や消耗なしでまとめ、治療用の包帯も残せる。", hours: 0, costs: {}, rewards: { water: 1, electrolyte: 1 }, outcome: "慎重な探索で整えた汲み口から飲料水 ×1を取り、見つけておいた未開封の電解質飲料 ×1とともに、追加の時間をかけず地面にまとめた。" } },
     { id: "leave", label: "何も取らず立ち去る", detail: "回収槽を離れる。時間も資源も使わない。", hours: 0, costs: {}, rewards: {}, injury: false, outcome: "雨水回収槽には手を付けず、先へ進むことにした。" },
   ],
 };

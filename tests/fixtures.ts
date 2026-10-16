@@ -10,3 +10,9 @@ export function withoutGround<T extends { ground: unknown }>(state: T): Omit<T, 
   const { ground: _ground, ...old } = state;
   return old;
 }
+
+/** Historical schemas/content 1–5 predate the wound condition. */
+export function withoutWound<T extends { wound: unknown }>(state: T): Omit<T, "wound"> {
+  const { wound: _wound, ...old } = state;
+  return old;
+}

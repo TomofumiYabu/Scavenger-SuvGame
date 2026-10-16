@@ -7,16 +7,17 @@ export interface ItemDefinition {
   description: string;
   recovery: Partial<Record<Stat, number>>;
   usable: boolean;
+  treatsWound: boolean;
 }
 export const ITEMS = {
-  water: { name: "飲料水", icon: "water", capacity: 2, description: "水分 +40", recovery: { thirst: 40 }, usable: true },
-  food: { name: "保存食", icon: "food", capacity: 2, description: "満腹度 +35", recovery: { hunger: 35 }, usable: true },
-  bandage: { name: "包帯", icon: "bandage", capacity: 1, description: "体力 +30", recovery: { health: 30 }, usable: true },
-  scrap: { name: "スクラップ", icon: "scrap", capacity: 2, description: "通信塔の修理・送信に3個使用", recovery: {}, usable: false },
-  snack: { name: "栄養バー", icon: "food", capacity: 1, description: "満腹度 +18・気力 +8", recovery: { hunger: 18, energy: 8 }, usable: true },
-  electrolyte: { name: "電解質飲料", icon: "water", capacity: 2, description: "水分 +25・気力 +20", recovery: { thirst: 25, energy: 20 }, usable: true },
-  medkit: { name: "救急キット", icon: "bandage", capacity: 3, description: "体力 +65", recovery: { health: 65 }, usable: true },
-  coffee: { name: "濃縮コーヒー", icon: "energy", capacity: 1, description: "気力 +25", recovery: { energy: 25 }, usable: true },
+  water: { name: "飲料水", icon: "water", capacity: 2, description: "水分 +40", recovery: { thirst: 40 }, usable: true, treatsWound: false },
+  food: { name: "保存食", icon: "food", capacity: 2, description: "満腹度 +35", recovery: { hunger: 35 }, usable: true, treatsWound: false },
+  bandage: { name: "包帯", icon: "bandage", capacity: 1, description: "体力 +30・軽い負傷を治療", recovery: { health: 30 }, usable: true, treatsWound: true },
+  scrap: { name: "スクラップ", icon: "scrap", capacity: 2, description: "通信塔の修理・送信に3個使用", recovery: {}, usable: false, treatsWound: false },
+  snack: { name: "栄養バー", icon: "food", capacity: 1, description: "満腹度 +18・気力 +8", recovery: { hunger: 18, energy: 8 }, usable: true, treatsWound: false },
+  electrolyte: { name: "電解質飲料", icon: "water", capacity: 2, description: "水分 +25・気力 +20", recovery: { thirst: 25, energy: 20 }, usable: true, treatsWound: false },
+  medkit: { name: "救急キット", icon: "bandage", capacity: 3, description: "体力 +65・軽い負傷を治療", recovery: { health: 65 }, usable: true, treatsWound: true },
+  coffee: { name: "濃縮コーヒー", icon: "energy", capacity: 1, description: "気力 +25", recovery: { energy: 25 }, usable: true, treatsWound: false },
 } satisfies Record<string, ItemDefinition>;
 export type Item = keyof typeof ITEMS;
 export const ITEM_IDS = Object.keys(ITEMS) as Item[];

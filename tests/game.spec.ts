@@ -1,4 +1,4 @@
-import { legacyInventory, withoutGround } from "./fixtures";
+import { legacyInventory, withoutGround, withoutWound } from "./fixtures";
 import { expect, test } from "@playwright/test";
 import { newGame } from "../src/game/engine";
 import type { Page } from "@playwright/test";
@@ -189,6 +189,7 @@ test("旧v1セーブの進行を保ち新たな六角形隣接から移動でき
 for (const width of [320, 390]) test(`六角形の辺と行オフセットが一致し${width}px幅で収まる`, async ({ page }) => {
   await page.setViewportSize({ width, height: 844 });
   await page.goto("/");
+  await page.locator(".map-grid").scrollIntoViewIfNeeded();
   const geometry = await page.locator(".map-grid").evaluate(grid => {
     const buttons = [...grid.querySelectorAll<HTMLButtonElement>("button")];
     const rects = buttons.map(button => button.getBoundingClientRect());
@@ -325,7 +326,7 @@ test("未来の主保存は旧保存があっても保護し、通常プレイ�
   await page.addInitScript(({ original, legacy }) => {
     if (localStorage.getItem("afterlight.save.v2") === null) localStorage.setItem("afterlight.save.v2", original);
     localStorage.setItem("afterlight.save.v1", legacy);
-  }, { original, legacy: JSON.stringify({ ...withoutGround(newGame()), version: 1, inventory: legacyInventory(newGame().inventory), turn: 10 }) });
+  }, { original, legacy: JSON.stringify({ ...withoutWound(withoutGround(newGame())), version: 1, inventory: legacyInventory(newGame().inventory), turn: 10 }) });
   await page.goto("/");
   await expect(page.getByRole("status")).toContainText("対応していません");
   await expect(page.getByTestId("remaining")).toHaveText("48");
@@ -341,7 +342,7 @@ test("未来の主保存は旧保存があっても保護し、通常プレイ�
 });
 
 test("旧保存は移行後も原文を保持し、直前の保存を確認して復旧する", async ({ page }) => {
-  const legacy = JSON.stringify({ ...withoutGround(newGame()), version: 1, inventory: legacyInventory(newGame().inventory), turn: 9 }, null, 2);
+  const legacy = JSON.stringify({ ...withoutWound(withoutGround(newGame())), version: 1, inventory: legacyInventory(newGame().inventory), turn: 9 }, null, 2);
   await page.addInitScript(legacy => {
     if (!localStorage.getItem("afterlight.save.v1")) localStorage.setItem("afterlight.save.v1", legacy);
   }, legacy);
@@ -457,7 +458,7 @@ test.describe("診療所・避難所の選択", () => {
         await page.reload(); await expect(title).toHaveCount(0);
         await expect(page.getByTestId("remaining")).toHaveText("46");
         const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("afterlight.save.v2")!));
-        expect(stored.contentVersion).toBe(5); expect(stored.resolvedEvents).toContain(event === "clinic" ? "clinic-supplies" : "shelter-embers");
+        expect(stored.contentVersion).toBe(6); expect(stored.resolvedEvents).toContain(event === "clinic" ? "clinic-supplies" : "shelter-embers");
       });
     }
   }
@@ -466,7 +467,7 @@ test.describe("診療所・避難所の選択", () => {
 test("内容版1の選択待ちを引き継ぎ、初回保存前の原文退避と旧版バックアップ復旧を確認する", async ({ page }) => {
   const saved = newGame(); saved.position = 29; saved.turn = 8; saved.discovered = [...new Set([...saved.discovered, 29])];
   saved.pendingEvent = { id: "collapsed-cache", tile: 29 };
-  const original = JSON.stringify({ ...withoutGround(saved), contentVersion: 1, inventory: legacyInventory(saved.inventory) }, null, 2);
+  const original = JSON.stringify({ ...withoutWound(withoutGround(saved)), contentVersion: 1, inventory: legacyInventory(saved.inventory) }, null, 2);
   await page.addInitScript(original => {
     if (!localStorage.getItem("afterlight.save.v2")) localStorage.setItem("afterlight.save.v2", original);
   }, original);

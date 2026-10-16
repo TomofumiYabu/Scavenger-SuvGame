@@ -2,6 +2,7 @@ import { ITEMS, isItem, CAPACITY, inventoryLoad, capacityChange } from "./items"
 import { eventChoice, eventById } from "./events";
 import { ITEM_NAMES, MAX_TURNS, TOWER, neighbors, tileAt } from "./model";
 import type { Action, GameState, Item, SearchMode, Terrain } from "./model";
+import { WOUND_ENERGY_PER_HOUR } from "./wounds";
 
 import type { Stat } from "./items";
 export type { Stat } from "./items";
@@ -17,6 +18,9 @@ export interface ActionTerms {
   groundRewards: Partial<Record<Item, number>>;
   injury: { oneIn: number; damage: number } | null;
   advanceRng: boolean;
+  treatsWound: boolean;
+  /** Additional energy already included in costs.energy. Only movement/search. */
+  woundEnergyCost: number;
 }
 
 export const SEARCH_METHODS = {
@@ -35,7 +39,7 @@ const CAREFUL_EXTRA: Record<Terrain, Item> = { ruins: "snack", street: "coffee",
 
 /** Shared rules for execution and previews. Recovery is capped before baseline costs. */
 export function actionTerms(state: GameState, action: Action): ActionTerms {
-  const terms: ActionTerms = { hours: 1, costs: { hunger: 3, thirst: 4 }, recovery: {}, supplies: {}, rewards: {}, groundRewards: {}, injury: null, advanceRng: false };
+  const terms: ActionTerms = { hours: 1, costs: { hunger: 3, thirst: 4 }, recovery: {}, supplies: {}, rewards: {}, groundRewards: {}, injury: null, advanceRng: false, treatsWound: false, woundEnergyCost: 0 };
   switch (action.type) {
     case "move": terms.costs.energy = 6; break;
     case "search": {
@@ -61,6 +65,7 @@ export function actionTerms(state: GameState, action: Action): ActionTerms {
       break;
     case "rest":
       terms.costs = { hunger: 6, thirst: 8 };
+      terms.treatsWound = tileAt(state.position).terrain === "shelter";
       terms.recovery = { energy: 35, ...(tileAt(state.position).terrain === "shelter" ? { health: 8 } : {}) };
       break;
     case "use":
@@ -68,13 +73,18 @@ export function actionTerms(state: GameState, action: Action): ActionTerms {
       if (!isItem(action.item)) break;
       terms.supplies[action.item] = 1;
       terms.recovery = { ...ITEMS[action.item].recovery };
+      terms.treatsWound = ITEMS[action.item].treatsWound;
       break;
     case "signal": terms.supplies.scrap = 3; break;
     case "choose":
       { const choice = eventChoice(action.event, action.choice, state.pendingEvent?.searchMode);
-        if (choice) { terms.hours = choice.hours; terms.costs = { ...choice.costs }; terms.groundRewards = { ...choice.rewards }; terms.recovery = { ...choice.recovery }; terms.supplies = { ...choice.supplies }; if (choice.injury) { terms.injury = { oneIn: 3, damage: RUINS_DAMAGE }; terms.advanceRng = true; } }
+        if (choice) { terms.hours = choice.hours; terms.costs = { ...choice.costs }; terms.groundRewards = { ...choice.rewards }; terms.recovery = { ...choice.recovery }; terms.supplies = { ...choice.supplies }; terms.treatsWound = choice.treatsWound ?? false; if (choice.injury) { terms.injury = { oneIn: 3, damage: RUINS_DAMAGE }; terms.advanceRng = true; } }
       }
       break;
+  }
+  if (state.wound === "minor" && (action.type === "move" || action.type === "search")) {
+    terms.woundEnergyCost = WOUND_ENERGY_PER_HOUR * terms.hours;
+    terms.costs.energy = (terms.costs.energy ?? 0) + terms.woundEnergyCost;
   }
   return terms;
 }
@@ -147,7 +157,7 @@ export function assessAction(state: GameState, action: Action): ActionAssessment
       if (depletion[key] > 0) risks.push(`${name}が0になり、体力 −${depletion[key]}${terms.hours > 1 ? `（1時間ごとに −${STARVATION_DAMAGE}）` : ""}`);
     }
     const injury = terms.injury;
-    if (injury) risks.push(`崩れた足場で負傷する可能性（${injury.oneIn}分の1で体力 −${injury.damage}）`);
+    if (injury) risks.push(`崩れた足場で負傷する可能性（${injury.oneIn}分の1で体力 −${injury.damage}・軽い負傷。移動・探索の気力消費が1時間ごとに +${WOUND_ENERGY_PER_HOUR}、重複なし）`);
     if (after.health === 0) risks.push(action.type === "signal" ? "この行動で体力が尽きます。送信しても脱出できません" : "この行動で体力が尽きます");
     else if (injury && after.health <= injury.damage) risks.push("負傷すると体力が尽きる可能性があります");
     if (terms.hours > 0 && state.turn + terms.hours >= MAX_TURNS && after.health > 0) risks.push(action.type === "signal" ? "最後の1時間です。体力が残れば脱出できます" : `残り${MAX_TURNS - state.turn}時間です。この行動で救助の機会を失います`);

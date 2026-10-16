@@ -13,6 +13,7 @@ export type Terrain =
   | "shelter"
   | "tower";
 import type { Item } from "./items";
+import type { Wound } from "./wounds";
 export type { Item } from "./items";
 export { ITEM_NAMES } from "./items";
 export type SearchMode = "quick" | "careful";
@@ -26,7 +27,8 @@ export interface Tile {
 }
 export interface GameState {
   version: 2;
-  contentVersion: 5;
+  contentVersion: 6;
+  wound: Wound;
   pendingEvent: { id: EventId; tile: number; searchMode?: SearchMode } | null;
   resolvedEvents: EventId[];
   turn: number;

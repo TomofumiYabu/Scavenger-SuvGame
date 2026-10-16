@@ -334,6 +334,19 @@ h1 span {
   padding-top: 20px;
   border-top: 1px solid var(--line);
 }
+.condition {
+  margin: 8px 17px 18px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.condition h3 { font-size: 12px; color: var(--green); }
+.condition p { margin-top: 6px; color: #b9c1af; }
+.condition summary { padding: 8px 0; cursor: pointer; color: var(--green); }
+.condition summary:focus-visible { outline: 2px solid #eed49b; outline-offset: 2px; }
+.condition-wounded h3 { color: #e0a082; }
 .mission .eyebrow {
   font-size: 8px;
   color: var(--gold);
@@ -1214,6 +1227,7 @@ dialog > form .button {
   .survivor {
     grid-column: 1/-1;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     padding: 17px;
   }
@@ -1236,6 +1250,8 @@ dialog > form .button {
     padding: 0;
     width: 100%;
   }
+  .survivor .stats { flex: 1; min-width: 0; }
+  .condition { flex-basis: 100%; margin: 14px 0 0; }
   .stat {
     margin: 0;
   }

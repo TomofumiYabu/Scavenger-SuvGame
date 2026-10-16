@@ -16,7 +16,8 @@ function note(state: GameState, text: string, kind: LogKind = "info"): void {
 export function newGame(): GameState {
   return {
     version: 2,
-    contentVersion: 5,
+    contentVersion: 6,
+    wound: "none",
     pendingEvent: null,
     resolvedEvents: [],
     turn: 0,
@@ -80,7 +81,7 @@ export function act(previous: GameState, action: Action): GameState {
       }
       note(state, `${action.mode === "careful" ? "慎重に探し、" : ""}${descriptions.join("、")}を見つけ、地面にまとめた。拾う物を選べる。`, "good");
       if (injuryDamage) {
-        note(state, "崩れた足場で負傷した。体力 −10。", "danger");
+        note(state, "崩れた足場で軽い負傷を負った。体力 −10。移動・探索の気力消費が1時間ごとに +2（重複なし）。", "danger");
       }
       break;
     }
@@ -123,7 +124,7 @@ export function act(previous: GameState, action: Action): GameState {
         const costs = Object.entries(terms.costs).map(([key, amount]) => `${names[key as keyof typeof names]} −${amount}`);
         note(state, `${terms.hours}時間。${[...recovery, ...costs].join("、")}。`);
       }
-      if (injuryDamage) note(state, "棚が崩れ、飛び散った破片で負傷した。体力 −10。", "danger");
+      if (injuryDamage) note(state, "棚が崩れ、飛び散った破片で軽い負傷を負った。体力 −10。移動・探索の気力消費が1時間ごとに +2（重複なし）。", "danger");
       break;
     }
     case "signal": {
@@ -137,6 +138,11 @@ export function act(previous: GameState, action: Action): GameState {
   }
   const { after, depletion } = projectStats(previous, terms, injuryDamage);
   Object.assign(state, after);
+  if (injuryDamage) state.wound = "minor";
+  else if (terms.treatsWound && previous.wound === "minor") {
+    state.wound = "none";
+    note(state, "手当てと休養で軽い負傷が治った。移動・探索の気力消費が通常に戻った。", "good");
+  }
   for (const [item, count] of Object.entries(terms.rewards) as [Item, number][]) state.inventory[item] += count;
   for (const [item, count] of Object.entries(terms.groundRewards) as [Item, number][]) {
     const ground = state.ground[state.position] ??= {};

@@ -30,7 +30,7 @@ function fixture(original: string) {
   return { data, storage, store: new SaveStore(() => storage), fail: (key: string) => { failKey = key; }, badRead: (key: string) => { badRead = key; } };
 }
 
-describe("content5 pending method and historical event gating", () => {
+describe("content6 pending method and historical event gating", () => {
   it.each(["quick", "careful"] as const)("roundtrips all search pending contexts with %s, and all six resolved IDs", mode => {
     for (const position of [30, 38, 6]) {
       const state = act({ ...newGame(), position, discovered: [position, ...neighbors(position)] }, { type: "search", mode });
@@ -99,7 +99,7 @@ describe("actual content4 migration preserves ground and exact original storage"
     const result = decodeSave(raw);
     expect(result.kind).toBe("migrated");
     if (!("state" in result)) throw new Error("expected content4 migration");
-    expect(result.state).toEqual({ ...old, contentVersion: 5, discovered: [...new Set([...old.discovered, ...neighbors(old.position)])] });
+    expect(result.state).toEqual({ ...old, contentVersion: 6, wound: "none", discovered: [...new Set([...old.discovered, ...neighbors(old.position)])] });
     expect(JSON.stringify(old, null, 2)).toBe(raw);
     expect(decodeSave(JSON.stringify(result.state))).toEqual({ kind: "valid", state: result.state });
   });
@@ -116,7 +116,7 @@ describe("actual content4 migration preserves ground and exact original storage"
     for (const position of [30, 6]) {
       const old = { ...oldContent4(true), position, discovered: [position], searched: [position], ground: { [position]: { scrap: 1 } } };
       const loaded = deserialize(JSON.stringify(old))!;
-      expect(loaded).toMatchObject({ contentVersion: 5, pendingEvent: null, rng: old.rng, searched: [position], ground: old.ground, inventory: old.inventory, log: old.log });
+      expect(loaded).toMatchObject({ contentVersion: 6, pendingEvent: null, rng: old.rng, searched: [position], ground: old.ground, inventory: old.inventory, log: old.log });
       expect(act(loaded, { type: "search", mode: "careful" })).toBe(loaded);
       expect(act(loaded, { type: "search", mode: "quick" })).toBe(loaded);
     }
@@ -126,7 +126,7 @@ describe("actual content4 migration preserves ground and exact original storage"
     const original = JSON.stringify(oldContent4(resolved), null, 2);
     const { data, store } = fixture(original);
     const loaded = store.load(); expect(data.size).toBe(1); expect(data.get(SAVE_KEY)).toBe(original);
-    expect(loaded.contentVersion).toBe(5); expect(store.mode).toBe("ready");
+    expect(loaded.contentVersion).toBe(6); expect(store.mode).toBe("ready");
     const next = act(loaded, resolved ? { type: "rest" } : { type: "choose", event: "collapsed-cache", tile: 29, choice: "leave" });
     expect(store.save(next)).toBe(true);
     expect(data.get(`${ARCHIVE_PREFIX}0`)).toBe(original); expect(data.get(BACKUP_KEY)).toBe(original);
@@ -154,7 +154,7 @@ describe("actual content4 migration preserves ground and exact original storage"
     const { data, store } = fixture(currentRaw);
     const old = oldContent4(); data.set(BACKUP_KEY, JSON.stringify(old, null, 2)); store.load();
     const backup = store.backup()!;
-    expect(backup.contentVersion).toBe(5); expect(backup.ground).toEqual(old.ground);
+    expect(backup.contentVersion).toBe(6); expect(backup.ground).toEqual(old.ground);
     expect(store.replace(backup)).toBe(true);
     expect(data.get(`${ARCHIVE_PREFIX}0`)).toBe(currentRaw);
     const recovered = new SaveStore(() => ({ getItem: key => data.get(key) ?? null, setItem() {} })).load();
