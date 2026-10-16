@@ -1,3 +1,4 @@
+import { legacyInventory } from "./fixtures";
 import { expect, test } from "@playwright/test";
 import { newGame } from "../src/game/engine";
 import type { Page } from "@playwright/test";
@@ -312,7 +313,7 @@ test("未来の主保存は旧保存があっても保護し、通常プレイ�
   await page.addInitScript(({ original, legacy }) => {
     if (localStorage.getItem("afterlight.save.v2") === null) localStorage.setItem("afterlight.save.v2", original);
     localStorage.setItem("afterlight.save.v1", legacy);
-  }, { original, legacy: JSON.stringify({ ...newGame(), version: 1, turn: 10 }) });
+  }, { original, legacy: JSON.stringify({ ...newGame(), version: 1, inventory: legacyInventory(newGame().inventory), turn: 10 }) });
   await page.goto("/");
   await expect(page.getByRole("status")).toContainText("対応していません");
   await expect(page.getByTestId("remaining")).toHaveText("48");
@@ -328,7 +329,7 @@ test("未来の主保存は旧保存があっても保護し、通常プレイ�
 });
 
 test("旧保存は移行後も原文を保持し、直前の保存を確認して復旧する", async ({ page }) => {
-  const legacy = JSON.stringify({ ...newGame(), version: 1, turn: 9 }, null, 2);
+  const legacy = JSON.stringify({ ...newGame(), version: 1, inventory: legacyInventory(newGame().inventory), turn: 9 }, null, 2);
   await page.addInitScript(legacy => {
     if (!localStorage.getItem("afterlight.save.v1")) localStorage.setItem("afterlight.save.v1", legacy);
   }, legacy);
@@ -441,7 +442,7 @@ test.describe("診療所・避難所の選択", () => {
         await page.reload(); await expect(title).toHaveCount(0);
         await expect(page.getByTestId("remaining")).toHaveText("46");
         const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("afterlight.save.v2")!));
-        expect(stored.contentVersion).toBe(2); expect(stored.resolvedEvents).toContain(event === "clinic" ? "clinic-supplies" : "shelter-embers");
+        expect(stored.contentVersion).toBe(3); expect(stored.resolvedEvents).toContain(event === "clinic" ? "clinic-supplies" : "shelter-embers");
       });
     }
   }
@@ -450,7 +451,7 @@ test.describe("診療所・避難所の選択", () => {
 test("内容版1の選択待ちを引き継ぎ、初回保存前の原文退避と旧版バックアップ復旧を確認する", async ({ page }) => {
   const saved = newGame(); saved.position = 29; saved.turn = 8; saved.discovered = [...new Set([...saved.discovered, 29])];
   saved.pendingEvent = { id: "collapsed-cache", tile: 29 };
-  const original = JSON.stringify({ ...saved, contentVersion: 1 }, null, 2);
+  const original = JSON.stringify({ ...saved, contentVersion: 1, inventory: legacyInventory(saved.inventory) }, null, 2);
   await page.addInitScript(original => {
     if (!localStorage.getItem("afterlight.save.v2")) localStorage.setItem("afterlight.save.v2", original);
   }, original);

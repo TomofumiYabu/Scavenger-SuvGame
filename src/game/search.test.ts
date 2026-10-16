@@ -1,4 +1,6 @@
+import { legacyInventory } from "../../tests/fixtures";
 import { describe, expect, it } from "vitest";
+import { ITEM_IDS } from "./items";
 import { assessAction } from "./actions";
 import { act, newGame } from "./engine";
 import { neighbors, TILES } from "./model";
@@ -28,10 +30,10 @@ describe("two search methods", () => {
       const action: Action = { type: "search", mode };
       const preview = assessAction(state, action);
       const rewards = { ...loot };
-      if (mode === "careful") rewards[bonus] = (rewards[bonus] ?? 0) + 1;
+      if (mode === "careful") { rewards[bonus] = (rewards[bonus] ?? 0) + 1; rewards[({ ruins: "snack", street: "coffee", park: "electrolyte", clinic: "medkit", shelter: "snack", tower: "coffee" } as const)[terrain]] = 1; }
       expect(preview).toMatchObject({ allowed: true, hours: mode === "quick" ? 1 : 2, costs: mode === "quick" ? { energy: 10, hunger: 5, thirst: 6 } : { energy: 16, hunger: 10, thirst: 12 }, rewards });
       const result = act(state, action);
-      for (const item of ["water", "food", "bandage", "scrap"] as const) expect(result.inventory[item] - state.inventory[item]).toBe(rewards[item] ?? 0);
+      for (const item of ITEM_IDS) expect(result.inventory[item] - state.inventory[item]).toBe(rewards[item] ?? 0);
       const injury = mode === "quick" && terrain === "ruins" ? 10 : 0;
       expect(preview.injury).toEqual(injury ? { oneIn: 3, damage: 10 } : null);
       for (const stat of ["health", "hunger", "thirst", "energy"] as const) expect(result[stat]).toBe(preview.after[stat] - (stat === "health" ? injury : 0));
@@ -98,7 +100,7 @@ describe("two search methods", () => {
       expect(act(state, action)).toBe(state);
     }
     state.inventory.scrap = Number.MAX_SAFE_INTEGER - 1;
-    expect(assessAction(state, quick).allowed).toBe(true);
+    expect(act(state, quick)).toBe(state);
     expect(act(state, careful)).toBe(state);
     const waiting = at("ruins"); waiting.pendingEvent = { id: "collapsed-cache", tile: waiting.position };
     expect(act(waiting, careful)).toBe(waiting);
@@ -106,7 +108,7 @@ describe("two search methods", () => {
 
   it.each(["quick", "careful"] as SearchMode[])("keeps old saves and a reloaded search exhausted for %s", mode => {
     for (const version of [1, 2]) {
-      const legacy = { ...newGame(), version, contentVersion: 1, searched: [36], rng: 12345 };
+      const legacy = { ...newGame(), version, contentVersion: 1, inventory: legacyInventory(newGame().inventory), searched: [36], rng: 12345 };
       const loaded = deserialize(JSON.stringify(legacy))!;
       expect(loaded.rng).toBe(12345);
       expect(act(loaded, { type: "search", mode })).toBe(loaded);

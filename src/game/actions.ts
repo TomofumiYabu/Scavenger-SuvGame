@@ -1,8 +1,10 @@
+import { ITEMS, isItem, CAPACITY, inventoryLoad, capacityChange } from "./items";
 import { eventChoice, eventById } from "./events";
 import { ITEM_NAMES, MAX_TURNS, TOWER, neighbors, tileAt } from "./model";
 import type { Action, GameState, Item, SearchMode, Terrain } from "./model";
 
-export type Stat = "health" | "hunger" | "thirst" | "energy";
+import type { Stat } from "./items";
+export type { Stat } from "./items";
 export const cap = (value: number) => Math.min(100, Math.max(0, value));
 export const STARVATION_DAMAGE = 12;
 export const RUINS_DAMAGE = 10;
@@ -28,6 +30,8 @@ const SEARCH_LOOT: Record<Terrain, Partial<Record<Item, number>>> = {
 };
 const CAREFUL_BONUS: Record<Terrain, Item> = { ruins: "scrap", street: "scrap", tower: "scrap", park: "food", shelter: "food", clinic: "bandage" };
 
+const CAREFUL_EXTRA: Record<Terrain, Item> = { ruins: "snack", street: "coffee", park: "electrolyte", clinic: "medkit", shelter: "snack", tower: "coffee" };
+
 /** Shared rules for execution and previews. Recovery is capped before baseline costs. */
 export function actionTerms(state: GameState, action: Action): ActionTerms {
   const terms: ActionTerms = { hours: 1, costs: { hunger: 3, thirst: 4 }, recovery: {}, supplies: {}, rewards: {}, injury: null, advanceRng: false };
@@ -40,7 +44,7 @@ export function actionTerms(state: GameState, action: Action): ActionTerms {
       terms.hours = method.hours;
       terms.costs = { ...method.costs };
       terms.rewards = { ...SEARCH_LOOT[terrain] };
-      if (mode === "careful") { const item = CAREFUL_BONUS[terrain]; terms.rewards[item] = (terms.rewards[item] ?? 0) + 1; }
+      if (mode === "careful") { const item = CAREFUL_BONUS[terrain]; terms.rewards[item] = (terms.rewards[item] ?? 0) + 1; terms.rewards[CAREFUL_EXTRA[terrain]] = 1; }
       else { terms.advanceRng = true; if (terrain === "ruins") terms.injury = { oneIn: 3, damage: RUINS_DAMAGE }; }
       break;
     }
@@ -50,10 +54,9 @@ export function actionTerms(state: GameState, action: Action): ActionTerms {
       break;
     case "use":
       terms.costs = { hunger: 1, thirst: 2 };
+      if (!isItem(action.item)) break;
       terms.supplies[action.item] = 1;
-      if (action.item === "food") terms.recovery.hunger = 35;
-      if (action.item === "water") terms.recovery.thirst = 40;
-      if (action.item === "bandage") terms.recovery.health = 30;
+      terms.recovery = { ...ITEMS[action.item].recovery };
       break;
     case "signal": terms.supplies.scrap = 3; break;
     case "choose":
@@ -81,6 +84,9 @@ export function projectStats(state: GameState, terms: ActionTerms, injuryDamage 
 }
 
 export interface ActionAssessment extends ActionTerms {
+  load: bigint;
+  loadChange: bigint;
+  loadAfter: bigint;
   allowed: boolean;
   reasons: string[];
   risks: string[];
@@ -90,6 +96,9 @@ export interface ActionAssessment extends ActionTerms {
 
 export function assessAction(state: GameState, action: Action): ActionAssessment {
   const terms = actionTerms(state, action);
+  const load = inventoryLoad(state.inventory);
+  const loadChange = capacityChange(terms.rewards) - capacityChange(terms.supplies);
+  const loadAfter = load + loadChange;
   const reasons: string[] = [];
   if (state.status !== "active") reasons.push("探索は終了しています。新しい探索を始めてください");
   else {
@@ -101,12 +110,14 @@ export function assessAction(state: GameState, action: Action): ActionAssessment
     if (action.type === "search" && action.mode !== undefined && !isSearchMode(action.mode)) reasons.push("探索方法を選び直してください");
     if (terms.hours > MAX_TURNS - state.turn) reasons.push(`残り時間が足りません（必要 ${terms.hours}時間 / 残り ${MAX_TURNS - state.turn}時間）`);
     if (state.energy < (terms.costs.energy ?? 0)) reasons.push(`気力が足りません（必要 ${terms.costs.energy}）${state.pendingEvent ? "。立ち去ることもできます" : "。現在地で休息してください"}`);
-    if (action.type === "use" && action.item === "scrap") reasons.push("スクラップは通信塔の送信機に使います");
+    if (action.type === "use" && !isItem(action.item)) reasons.push("この物資は使用できません");
+    if (action.type === "use" && isItem(action.item) && !ITEMS[action.item].usable) reasons.push(action.item === "scrap" ? "スクラップは通信塔の送信機に使います" : "この物資は使用できません");
     for (const [item, count] of Object.entries(terms.supplies) as [Item, number][]) {
       if (state.inventory[item] < count) reasons.push(`${ITEM_NAMES[item]}が足りません（必要 ${count}個 / 所持 ${state.inventory[item]}個）`);
     }
+    if (loadAfter > BigInt(CAPACITY) && loadChange > 0n) reasons.push(`容量が足りません（回収後 ${loadAfter} / ${CAPACITY}）。物資を使って空きを作ってください${state.pendingEvent ? "。今は立ち去ることもできます" : ""}`);
     for (const [item, count] of Object.entries(terms.rewards) as [Item, number][]) {
-      if (!Number.isSafeInteger(state.inventory[item] + count)) reasons.push(`${ITEM_NAMES[item]}の所持数が多すぎて回収できません。立ち去ることもできます`);
+      if (!Number.isSafeInteger(state.inventory[item] - (terms.supplies[item] ?? 0) + count)) reasons.push(`${ITEM_NAMES[item]}の所持数が多すぎて回収できません。立ち去ることもできます`);
     }
     if (action.type === "signal" && state.position !== TOWER) reasons.push("通信塔で送信してください");
   }
@@ -122,5 +133,5 @@ export function assessAction(state: GameState, action: Action): ActionAssessment
     else if (injury && after.health <= injury.damage) risks.push("負傷すると体力が尽きる可能性があります");
     if (terms.hours > 0 && state.turn + terms.hours >= MAX_TURNS && after.health > 0) risks.push(action.type === "signal" ? "最後の1時間です。体力が残れば脱出できます" : `残り${MAX_TURNS - state.turn}時間です。この行動で救助の機会を失います`);
   }
-  return { ...terms, allowed: reasons.length === 0, reasons, risks, after };
+  return { ...terms, load, loadChange, loadAfter, allowed: reasons.length === 0, reasons, risks, after };
 }

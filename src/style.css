@@ -1632,3 +1632,12 @@ dialog > form .button {
 .outcome-panel { overflow-wrap: anywhere; }
 .outcome-panel > .button { margin-top: 16px; }
 .outcome-ended { font-weight: 600; color: #e4b293; }
+
+/* Counts from older saves can be large; keep all eight item cards readable. */
+.item-copy { min-width: 0; }
+.item-copy h3 { white-space: normal; overflow-wrap: anywhere; }
+.item-copy > span { font-size: 11px; line-height: 1.6; }
+.inventory [data-region="capacity-warning"] .action-risk { padding: 12px 20px 0; overflow-wrap: anywhere; }
+.inventory .section-heading { flex-wrap: wrap; gap: 8px; }
+.inventory [data-testid="capacity"] { overflow-wrap: anywhere; max-width: 100%; }
+.use-button { min-height: 44px; min-width: 44px; }

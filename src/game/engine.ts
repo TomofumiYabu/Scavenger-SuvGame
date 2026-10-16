@@ -16,7 +16,7 @@ function note(state: GameState, text: string, kind: LogKind = "info"): void {
 export function newGame(): GameState {
   return {
     version: 2,
-    contentVersion: 2,
+    contentVersion: 3,
     pendingEvent: null,
     resolvedEvents: [],
     turn: 0,
@@ -25,7 +25,7 @@ export function newGame(): GameState {
     hunger: 80,
     thirst: 80,
     energy: 85,
-    inventory: { water: 2, food: 2, bandage: 1, scrap: 0 },
+    inventory: { water: 2, food: 2, bandage: 1, scrap: 0, snack: 0, electrolyte: 0, medkit: 0, coffee: 0 },
     discovered: [START, ...neighbors(START)],
     searched: [],
     rng: 2026,
@@ -95,7 +95,9 @@ export function act(previous: GameState, action: Action): GameState {
       break;
     }
     case "use": {
-      note(state, `${ITEM_NAMES[action.item]}を使った。`, "good");
+      const labels = { health: "体力", hunger: "満腹度", thirst: "水分", energy: "気力" };
+      const recovery = Object.entries(terms.recovery).map(([key, amount]) => `${labels[key as keyof typeof labels]} +${Math.min(amount, 100 - previous[key as keyof typeof labels])}`);
+      note(state, `${ITEM_NAMES[action.item]}を使った。${recovery.join("、")}（上限100）。1時間、満腹度 −1、水分 −2。`, "good");
       break;
     }
     case "choose": {

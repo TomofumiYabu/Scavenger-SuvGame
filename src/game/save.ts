@@ -1,3 +1,4 @@
+import { ITEM_IDS, LEGACY_ITEM_IDS } from "./items";
 import { eventById } from "./events";
 import { EVENT_ID, MAX_TURNS, SIZE, TOWER, neighbors, tileAt } from "./model";
 import type { GameState } from "./model";
@@ -21,13 +22,17 @@ export type SaveResult = { kind: "valid" | "migrated"; state: GameState } | { ki
 export function decodeSave(raw: string): SaveResult {
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { return { kind: "corrupt" }; }
-  if (record(parsed) && (parsed.version !== 1 && parsed.version !== 2 || parsed.version === 2 && (parsed.contentVersion !== 1 && parsed.contentVersion !== 2))) return { kind: "unsupported" };
+  if (record(parsed) && (parsed.version !== 1 && parsed.version !== 2 || parsed.version === 2 && (parsed.contentVersion !== 1 && parsed.contentVersion !== 2 && parsed.contentVersion !== 3))) return { kind: "unsupported" };
   if (record(parsed) && parsed.version === 2) {
     if (Array.isArray(parsed.resolvedEvents) && parsed.resolvedEvents.some(id => typeof id === "string" && (!eventById(String(id)) || parsed.contentVersion === 1 && id !== EVENT_ID))) return { kind: "unsupported" };
     if (record(parsed.pendingEvent) && typeof parsed.pendingEvent.id === "string" && (!eventById(parsed.pendingEvent.id) || parsed.contentVersion === 1 && parsed.pendingEvent.id !== EVENT_ID)) return { kind: "unsupported" };
   }
+  if (record(parsed) && record(parsed.inventory)) {
+    const known: readonly string[] = parsed.version === 2 && parsed.contentVersion === 3 ? ITEM_IDS : LEGACY_ITEM_IDS;
+    if (Object.keys(parsed.inventory).some(id => !known.includes(id))) return { kind: "unsupported" };
+  }
   const state = validate(raw);
-  return state ? { kind: record(parsed) && (parsed.version === 1 || parsed.contentVersion === 1) ? "migrated" : "valid", state } : { kind: "corrupt" };
+  return state ? { kind: record(parsed) && (parsed.version === 1 || parsed.contentVersion !== 3) ? "migrated" : "valid", state } : { kind: "corrupt" };
 }
 export function deserialize(raw: string): GameState | null {
   const result = decodeSave(raw);
@@ -47,7 +52,7 @@ function validate(raw: string): GameState | null {
     for (const key of ["health", "hunger", "thirst", "energy"])
       if (!integer(s[key], 0, 100)) return null;
     if (!record(s.inventory)) return null;
-    for (const key of ["food", "water", "bandage", "scrap"])
+    for (const key of s.version === 2 && s.contentVersion === 3 ? ITEM_IDS : LEGACY_ITEM_IDS)
       if (!integer(s.inventory[key], 0, Number.MAX_SAFE_INTEGER)) return null;
     if (
       !tileList(s.discovered) ||
@@ -85,7 +90,7 @@ function validate(raw: string): GameState | null {
     )
       return null;
     if (s.version === 2) {
-      if (![1, 2].includes(s.contentVersion as number) || !Array.isArray(s.resolvedEvents) || s.resolvedEvents.length > 3 || new Set(s.resolvedEvents).size !== s.resolvedEvents.length || s.resolvedEvents.some(id => typeof id !== "string" || !eventById(id) || s.contentVersion === 1 && id !== EVENT_ID)) return null;
+      if (![1, 2, 3].includes(s.contentVersion as number) || !Array.isArray(s.resolvedEvents) || s.resolvedEvents.length > 3 || new Set(s.resolvedEvents).size !== s.resolvedEvents.length || s.resolvedEvents.some(id => typeof id !== "string" || !eventById(id) || s.contentVersion === 1 && id !== EVENT_ID)) return null;
       if (s.pendingEvent !== null) {
         if (!record(s.pendingEvent) || typeof s.pendingEvent.id !== "string" || !eventById(s.pendingEvent.id) || s.contentVersion === 1 && s.pendingEvent.id !== EVENT_ID || !integer(s.pendingEvent.tile, 0, SIZE * SIZE - 1) || s.pendingEvent.tile !== s.position || tileAt(s.pendingEvent.tile).terrain !== eventById(s.pendingEvent.id)?.terrain || s.status !== "active" || s.resolvedEvents.includes(s.pendingEvent.id)) return null;
       }
@@ -95,7 +100,8 @@ function validate(raw: string): GameState | null {
     // hex ring for square-grid saves, without inferring an unavailable route.
     return {
       ...s,
-      version: 2, contentVersion: 2,
+      version: 2, contentVersion: 3,
+      inventory: { snack: 0, electrolyte: 0, medkit: 0, coffee: 0, ...s.inventory },
       pendingEvent: s.version === 1 ? null : s.pendingEvent,
       resolvedEvents: s.version === 1 ? [] : s.resolvedEvents,
       discovered: [...new Set([...s.discovered, ...neighbors(s.position)])],

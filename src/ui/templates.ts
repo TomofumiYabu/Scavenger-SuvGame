@@ -1,3 +1,4 @@
+import { ITEMS, ITEM_IDS, CAPACITY, inventoryLoad } from "../game/items";
 import { eventById } from "../game/events";
 import { assessAction, SEARCH_METHODS } from "../game/actions";
 import type { Stat } from "../game/actions";
@@ -24,7 +25,7 @@ export const shell = `
   <dialog id="help-dialog" aria-labelledby="help-title">
     <span class="eyebrow">FIELD MANUAL / 01</span><h2 id="help-title">この街で、生き延びる。</h2>
     <p>北東の通信塔へ向かい、<strong>スクラップ3個</strong>で救難信号を送ってください。残された時間は48時間です。</p>
-    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地で「手早く探す」（1時間）か「慎重に探す」（2時間）を選びます。慎重な探索は負傷せず、主な物資を1個多く得ます。どちらか一度でその地点は探索済みになります。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。探索以外の通常行動は1時間です。廃墟・診療所・避難所で出来事に出会ったら、費用と危険を読んで選択してください。立ち去る選択は時間を使いません。</li><li>満腹度・水分が0の時間ごとに、それぞれ体力が12減ります。廃墟の手早い探索では負傷することもあります。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
+    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地で「手早く探す」（1時間）か「慎重に探す」（2時間）を選びます。慎重な探索は負傷せず、主な物資を1個多く、地形ごとの追加物資も1個得ます。どちらか一度でその地点は探索済みになります。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。探索以外の通常行動は1時間です。廃墟・診療所・避難所で出来事に出会ったら、費用と危険を読んで選択してください。立ち去る選択は時間を使いません。</li><li>満腹度・水分が0の時間ごとに、それぞれ体力が12減ります。廃墟の手早い探索では負傷することもあります。</li><li>バックパックの容量は24です。容量は各物資に表示されます。探索・出来事の収穫がすべて入らない場合は回収できず、時間も進みません。物資を使って空きを作ってください。出来事の選択中は、立ち去ってから物資を使えます。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
     <p class="muted">進行状況はこのブラウザに自動保存されます。Tab と Enter、またはタップ・クリックで操作できます。</p>
     <form method="dialog"><button class="button primary">探索に戻る ${icon("arrow")}</button></form>
   </dialog>
@@ -96,9 +97,10 @@ function guidance(action: Action, id: string): { disabled: string; details: stri
   const supplies = Object.entries(assessment.supplies).map(([key, amount]) => `${ITEM_NAMES[key as Item]} ${amount}個を消費`);
   const rewards = Object.entries(assessment.rewards).map(([key, amount]) => `${ITEM_NAMES[key as Item]} +${amount}個`);
   const recovery = Object.entries(assessment.recovery).map(([key, amount]) => `${statNames[key as Stat]} +${amount}（実回復 +${Math.min(amount!, 100 - state[key as Stat])}）`);
+  const capacity = assessment.loadChange === 0n ? [] : [`容量 ${assessment.loadChange > 0n ? "+" : "−"}${assessment.loadChange < 0n ? -assessment.loadChange : assessment.loadChange}${assessment.loadAfter >= 0n ? `（${assessment.load} → ${assessment.loadAfter} / ${CAPACITY}）` : ""}`];
   return {
     disabled: `${assessment.allowed ? "" : "disabled"} aria-describedby="${id}"`,
-    details: `<div id="${id}" class="action-details" tabindex="-1"><p class="action-cost">${[`${assessment.hours}時間`, ...supplies, ...costs].join(" / ")}</p>${rewards.length ? `<p class="action-effect">収穫：${rewards.join(" / ")}</p>` : ""}${action.type === "search" ? `<p class="action-effect">探索による負傷：${assessment.injury ? `${assessment.injury.oneIn}分の1で体力 −${assessment.injury.damage}` : "0（なし）"}</p>` : ""}${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("")}${assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("")}</div>`,
+    details: `<div id="${id}" class="action-details" tabindex="-1"><p class="action-cost">${[`${assessment.hours}時間`, ...supplies, ...costs, ...capacity].join(" / ")}</p>${rewards.length ? `<p class="action-effect">収穫：${rewards.join(" / ")}</p>` : ""}${action.type === "search" ? `<p class="action-effect">探索による負傷：${assessment.injury ? `${assessment.injury.oneIn}分の1で体力 −${assessment.injury.damage}` : "0（なし）"}</p>` : ""}${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("")}${assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("")}</div>`,
   };
 }
 function actionButton(action: Action, label: string, glyph: string, style = "primary"): string {
@@ -122,12 +124,12 @@ function location(): string {
     </div></section>`;
 }
 function inventory(): string {
-  return `<section class="inventory panel" aria-labelledby="inventory-title"><div class="section-heading"><h2 id="inventory-title" tabindex="-1">${icon("pack")}バックパック</h2><span>SUPPLIES</span></div>
-    <div class="inventory-grid">${(Object.keys(ITEM_NAMES) as Item[]).map(item => {
+  return `<section class="inventory panel" aria-labelledby="inventory-title"><div class="section-heading"><h2 id="inventory-title" tabindex="-1">${icon("pack")}バックパック</h2><span data-testid="capacity">容量 ${inventoryLoad(state.inventory)} / ${CAPACITY}</span></div><div data-region="capacity-warning">${inventoryLoad(state.inventory) > BigInt(CAPACITY) ? '<p class="action-risk" role="status">容量を超えています。所持品はすべて保持しています。物資を使って空きを作るまで、荷物が増える回収はできません。</p>' : ""}</div>
+    <div class="inventory-grid">${ITEM_IDS.map(item => {
       const info = guidance({ type: "use", item }, `guide-use-${item}`);
-      return `<div class="item ${state.inventory[item] === 0 ? "empty" : ""}"><div class="item-icon">${icon(item)}</div><div class="item-copy"><h3 tabindex="-1">${ITEM_NAMES[item]} <b data-testid="item-${item}">×${state.inventory[item]}</b></h3>${item === "scrap" ? '<span>通信塔の修理に使用</span>' : ""}</div>${item === "scrap" ? `<span class="material-tag">部品</span>` : `<button class="use-button" data-item="${item}" data-focus="use-${item}" aria-label="${ITEM_NAMES[item]}を使う" ${info.disabled}>使う</button>${info.details}`}</div>`;
+      return `<div class="item ${state.inventory[item] === 0 ? "empty" : ""}"><div class="item-icon">${icon(ITEMS[item].icon)}</div><div class="item-copy"><h3 tabindex="-1">${ITEM_NAMES[item]} <b data-testid="item-${item}">×${state.inventory[item]}</b></h3><span>容量 ${ITEMS[item].capacity} / 個 · ${ITEMS[item].description}</span></div>${!ITEMS[item].usable ? `<span class="material-tag">部品</span>` : `<button class="use-button" data-item="${item}" data-focus="use-${item}" aria-label="${ITEM_NAMES[item]}を使う" ${info.disabled}>使う</button>${info.details}`}</div>`;
     }).join("")}</div>
-    <p class="inventory-note">物資は上限100まで回復してから、使用に伴う満腹度・水分を消費します。</p></section>`;
+    <p class="inventory-note">容量24まで持ち運べます。収穫がすべて入らない場合は回収できません。物資は上限100まで回復してから、使用に伴う満腹度・水分を消費します。</p></section>`;
 }
 
 function ending(): string {
