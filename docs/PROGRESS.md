@@ -63,12 +63,13 @@ Wiki調査用に `neoscavenger.fandom.com` を許可先へ追加済みで、ユ�
 
 ## GitHub と Pages 公開
 
-最新の公開: 六角形マップの変更をコミット `403cc41` として `main` へプッシュ。[Actions実行 38836232266](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38836232266) のテスト・ビルド・Pages公開は成功。公開URLからTLS検証を有効にしたHTTP取得を行い、HTMLとJS/CSSの全2ファイルがCloudで検証済みの `dist/` とバイト単位で一致することを確認した。
+最新の公開: AL-001の行動案内とWiki調査のPending化をコミット `bbb1a09` として `main` へプッシュ。[Actions実行 38860443351](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38860443351) のテスト・ビルド・Pages公開は成功。公開URLからTLS検証を有効にしたHTTP取得を行い、HTMLとJS/CSSの全2ファイルがCloudで検証済みの `dist/` とバイト単位で一致することを確認した。
 
-公開URLでのChromium操作確認は `ERR_CERT_AUTHORITY_INVALID` で接続できず未完了。証明書検証は無効化していない。六方向移動・保存復元などの実操作はCloud内とActionsのブラウザテストで検証済みであり、公開URLへの直接操作とは区別する。
+公開URLでのChromium操作確認は前回 `ERR_CERT_AUTHORITY_INVALID` で接続できず、今回は再実施していない。証明書検証は無効化していない。行動案内・六方向移動・保存復元などの実操作はCloud内とActionsのブラウザテストで検証済みであり、公開URLへの直接操作とは区別する。
 
 以下は初回公開からの履歴。
 
+- 六角形マップの変更は `403cc41` として公開済み。[Actions実行 38836232266](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38836232266) と当時の公開ファイル一致の確認は成功。
 - ゲーム本体を初回コミット `fe2e970` として `main` へプッシュ済み。
 - ユーザーの指示により、今後は検証が通った機能単位・作業の区切りでコミットとプッシュを行う。方針を `AGENTS.md` に記録した。
 - `.github/workflows/pages.yml` を追加。main ではテスト・ビルド後に Pages へ公開し、PR では検証のみ実施する。Actions は公式タグのコミット SHA で固定。
