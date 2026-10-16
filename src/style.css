@@ -1597,3 +1597,23 @@ dialog > form .button {
   .inventory-grid { grid-template-columns: 1fr; }
   .item > .action-details { font-size: 11px; }
 }
+
+.event-panel, .recovery { margin: 24px 0; padding: 24px; }
+.event-panel { border-color: var(--accent, #bdc99a); }
+.event-panel > p, .recovery p { line-height: 1.8; max-width: 80ch; }
+.event-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.event-choice { min-width: 0; border-top: 1px solid #41483c; padding-top: 12px; }
+.event-choice > p { font-size: 13px; line-height: 1.8; }
+.event-choice .button { width: 100%; white-space: normal; }
+#event-title:focus, #journal-title:focus { outline: 2px dashed #d9e5b4; outline-offset: 5px; }
+.recovery summary { cursor: pointer; }
+@media (max-width: 760px) {
+  .event-choices { grid-template-columns: 1fr; }
+  .event-panel, .recovery { padding: 18px; }
+}
+.event-panel > .eyebrow { display: block; margin-bottom: 14px; }
+.event-panel h2 { font-size: 24px; line-height: 1.5; margin-bottom: 18px; }
+.event-panel > p + p, .recovery p { margin-top: 12px; }
+.event-choices { margin-top: 20px; }
+.event-choice > p { margin-bottom: 12px; }
+.recovery .button { margin-top: 14px; }

@@ -14,14 +14,14 @@ describe("保存の復元と検証", () => {
   it.each(["active", "won", "dead", "lost"] as const)(
     "四角形時代のv1を維持し現在地の六角形隣接だけ補完する: %s", (status) => {
       const legacy = {
-        ...newGame(), status, turn: status === "lost" ? 48 : 17,
+        ...newGame(), version: 1, status, turn: status === "lost" ? 48 : 17,
         position: status === "won" ? 6 : 36,
         health: status === "dead" ? 0 : 74,
         discovered: status === "won" ? [5, 6, 13, 36] : [29, 35, 36, 37, 43],
         searched: [36], energy: 41, rng: 12345,
       };
       const loaded = deserialize(JSON.stringify(legacy))!;
-      expect(loaded).toEqual({ ...legacy, discovered: [...new Set([...legacy.discovered, ...neighbors(legacy.position)])] });
+      expect(loaded).toEqual({ ...legacy, version: 2, contentVersion: 1, pendingEvent: null, resolvedEvents: [], discovered: [...new Set([...legacy.discovered, ...neighbors(legacy.position)])] });
       expect(deserialize(JSON.stringify(loaded))).toEqual(loaded);
     },
   );
@@ -32,7 +32,7 @@ describe("保存の復元と検証", () => {
     },
   );
   it.each([
-    { version: 2 },
+    { version: 3 },
     { position: 99 },
     { turn: -1 },
     { turn: 49 },

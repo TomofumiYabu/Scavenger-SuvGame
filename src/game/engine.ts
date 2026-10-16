@@ -1,5 +1,7 @@
+import { cacheChoice } from "./events";
 import { actionTerms, assessAction, cap, RUINS_DAMAGE, STARVATION_DAMAGE } from "./actions";
 import {
+  EVENT_ID,
   ITEM_NAMES,
   MAX_TURNS,
   START,
@@ -7,14 +9,17 @@ import {
   neighbors,
   tileAt,
 } from "./model";
-import type { Action, GameState, Item, LogKind, Terrain } from "./model";
+import type { Action, GameState, Item, LogKind } from "./model";
 
 function note(state: GameState, text: string, kind: LogKind = "info"): void {
   state.log = [{ turn: state.turn, text, kind }, ...state.log].slice(0, 12);
 }
 export function newGame(): GameState {
   return {
-    version: 1,
+    version: 2,
+    contentVersion: 1,
+    pendingEvent: null,
+    resolvedEvents: [],
     turn: 0,
     position: START,
     health: 100,
@@ -35,15 +40,6 @@ export function newGame(): GameState {
     ],
   };
 }
-
-const loot: Record<Terrain, Partial<Record<Item, number>>> = {
-  ruins: { scrap: 2, water: 1 },
-  street: { scrap: 1 },
-  park: { food: 1, water: 1 },
-  clinic: { bandage: 2, water: 1 },
-  shelter: { food: 1, water: 1 },
-  tower: { scrap: 1 },
-};
 
 export function canAct(state: GameState, action: Action): boolean {
   return assessAction(state, action).allowed;
@@ -75,11 +71,10 @@ export function act(previous: GameState, action: Action): GameState {
     case "search": {
       state.searched.push(state.position);
       const terrain = tileAt(state.position).terrain;
-      const found = loot[terrain];
+      const found = terms.rewards;
       const descriptions: string[] = [];
       for (const item of Object.keys(found) as Item[]) {
         const count = found[item]!;
-        state.inventory[item] += count;
         descriptions.push(`${ITEM_NAMES[item]} ×${count}`);
       }
       note(state, `${descriptions.join("、")}を見つけた。`, "good");
@@ -105,6 +100,17 @@ export function act(previous: GameState, action: Action): GameState {
       note(state, `${ITEM_NAMES[action.item]}を使った。`, "good");
       break;
     }
+    case "choose": {
+      state.pendingEvent = null;
+      state.resolvedEvents.push(action.event);
+      const choice = cacheChoice(action.choice)!;
+      note(state, choice.outcome, choice.id === "leave" ? "info" : "good");
+      if (choice.injury) {
+        state.rng = (Math.imul(state.rng, 1664525) + 1013904223) >>> 0;
+        if (state.rng % 3 === 0) { state.health = cap(state.health - RUINS_DAMAGE); note(state, "棚が崩れ、飛び散った破片で負傷した。体力 −10。", "danger"); }
+      }
+      break;
+    }
     case "signal": {
       note(
         state,
@@ -115,11 +121,12 @@ export function act(previous: GameState, action: Action): GameState {
     }
   }
   for (const key of ["health", "hunger", "thirst", "energy"] as const) state[key] = cap(state[key] - (terms.costs[key] ?? 0));
-  if (state.hunger === 0) {
+  for (const [item, count] of Object.entries(terms.rewards) as [Item, number][]) state.inventory[item] += count;
+  if (terms.hours > 0 && state.hunger === 0) {
     state.health = cap(state.health - STARVATION_DAMAGE);
     note(state, "空腹で力が入らない。体力 −12。", "danger");
   }
-  if (state.thirst === 0) {
+  if (terms.hours > 0 && state.thirst === 0) {
     state.health = cap(state.health - STARVATION_DAMAGE);
     note(state, "ひどい渇きが体を蝕む。体力 −12。", "danger");
   }
@@ -131,6 +138,11 @@ export function act(previous: GameState, action: Action): GameState {
   } else if (state.turn >= MAX_TURNS) {
     state.status = "lost";
     note(state, "最後の救難電波が途絶えた。救助の機会を失った。", "danger");
+  }
+  if (state.status !== "active") state.pendingEvent = null;
+  else if (action.type === "move" && tileAt(state.position).terrain === "ruins" && !state.resolvedEvents.includes(EVENT_ID)) {
+    state.pendingEvent = { id: EVENT_ID, tile: state.position };
+    note(state, "崩れた備蓄庫を見つけた。入口には箱が、傾いた棚の奥には部品が見える。");
   }
   return state;
 }

@@ -1,4 +1,4 @@
-import { MAX_TURNS, SIZE, TOWER, neighbors } from "./model";
+import { EVENT_ID, MAX_TURNS, SIZE, TOWER, neighbors, tileAt } from "./model";
 import type { GameState } from "./model";
 
 const record = (value: unknown): value is Record<string, unknown> =>
@@ -14,12 +14,30 @@ const tileList = (value: unknown): value is number[] =>
   new Set(value).size === value.length &&
   value.every((id) => integer(id, 0, SIZE * SIZE - 1));
 
+export type SaveResult = { kind: "valid" | "migrated"; state: GameState } | { kind: "corrupt" | "unsupported" };
+
+/** Read-only classification. Never modifies storage or draws random numbers. */
+export function decodeSave(raw: string): SaveResult {
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { return { kind: "corrupt" }; }
+  if (record(parsed) && (parsed.version !== 1 && parsed.version !== 2 || parsed.version === 2 && parsed.contentVersion !== 1)) return { kind: "unsupported" };
+  if (record(parsed) && parsed.version === 2) {
+    if (Array.isArray(parsed.resolvedEvents) && parsed.resolvedEvents.some(id => typeof id === "string" && id !== EVENT_ID)) return { kind: "unsupported" };
+    if (record(parsed.pendingEvent) && typeof parsed.pendingEvent.id === "string" && parsed.pendingEvent.id !== EVENT_ID) return { kind: "unsupported" };
+  }
+  const state = validate(raw);
+  return state ? { kind: record(parsed) && parsed.version === 1 ? "migrated" : "valid", state } : { kind: "corrupt" };
+}
 export function deserialize(raw: string): GameState | null {
+  const result = decodeSave(raw);
+  return "state" in result ? result.state : null;
+}
+function validate(raw: string): GameState | null {
   try {
     const s: unknown = JSON.parse(raw);
     if (
       !record(s) ||
-      s.version !== 1 ||
+      (s.version !== 1 && s.version !== 2) ||
       !integer(s.turn, 0, MAX_TURNS) ||
       !integer(s.position, 0, SIZE * SIZE - 1) ||
       !integer(s.rng, 0, 0xffffffff)
@@ -29,7 +47,7 @@ export function deserialize(raw: string): GameState | null {
       if (!integer(s[key], 0, 100)) return null;
     if (!record(s.inventory)) return null;
     for (const key of ["food", "water", "bandage", "scrap"])
-      if (!integer(s.inventory[key], 0, 999)) return null;
+      if (!integer(s.inventory[key], 0, Number.MAX_SAFE_INTEGER)) return null;
     if (
       !tileList(s.discovered) ||
       !tileList(s.searched) ||
@@ -65,11 +83,20 @@ export function deserialize(raw: string): GameState | null {
       )
     )
       return null;
+    if (s.version === 2) {
+      if (s.contentVersion !== 1 || !Array.isArray(s.resolvedEvents) || s.resolvedEvents.length > 1 || s.resolvedEvents.some(id => id !== EVENT_ID)) return null;
+      if (s.pendingEvent !== null) {
+        if (!record(s.pendingEvent) || s.pendingEvent.id !== EVENT_ID || !integer(s.pendingEvent.tile, 0, SIZE * SIZE - 1) || s.pendingEvent.tile !== s.position || tileAt(s.pendingEvent.tile).terrain !== "ruins" || s.status !== "active" || s.resolvedEvents.includes(EVENT_ID)) return null;
+      }
+    }
     // All fields used by the application were checked above. Never trust arbitrary saved HTML.
     // v1 IDs and fields are unchanged. Preserve progress and reveal the current
     // hex ring for square-grid saves, without inferring an unavailable route.
     return {
       ...s,
+      version: 2, contentVersion: 1,
+      pendingEvent: s.version === 1 ? null : s.pendingEvent,
+      resolvedEvents: s.version === 1 ? [] : s.resolvedEvents,
       discovered: [...new Set([...s.discovered, ...neighbors(s.position)])],
     } as unknown as GameState;
   } catch {

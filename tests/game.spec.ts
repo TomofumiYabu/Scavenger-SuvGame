@@ -22,6 +22,7 @@ test("探索、移動、アイテム使用、自動保存からの復元", async
   await expect(page.getByTestId("item-water")).toHaveText("×3");
   await expect(page.getByRole("button", { name: /^探索済み/ })).toBeDisabled();
   await move(page, "B5");
+  await page.getByRole("button", { name: "何も取らず立ち去る" }).click();
   await page.getByRole("button", { name: "飲料水を使う" }).click();
   await expect(page.getByTestId("item-water")).toHaveText("×2");
   await expect(page.getByTestId("remaining")).toHaveText("45");
@@ -36,6 +37,7 @@ test("UIから資源を集めて脱出し、終了状態も保存する", async 
   await page.goto("/");
   await page.getByRole("button", { name: "周囲を探索する" }).click();
   await move(page, "B5");
+  await page.getByRole("button", { name: "何も取らず立ち去る" }).click();
   await page.getByRole("button", { name: "周囲を探索する" }).click();
   await move(page, "C5");
   await page.getByRole("button", { name: "周囲を探索する" }).click();
@@ -279,4 +281,109 @@ for (const width of [320, 390]) test(`危険と行動不能の説明が${width}p
   }));
   expect(layout).toEqual({ inside: true, readable: true, overflow: false });
   await page.screenshot({ path: `test-results/guidance-${width}.png`, fullPage: true });
+});
+
+for (const width of [320, 390]) test(`備蓄庫の選択と再読込・キーボード・結果が${width}pxで使える`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 844 });
+  await page.goto("/"); await move(page, "B5");
+  const title = page.getByRole("heading", { name: "崩れた備蓄庫" });
+  await expect(title).toBeFocused();
+  await expect(page.getByRole("button", { name: "周囲を探索する" })).toHaveAccessibleDescription(/選択を先に/);
+  await expect(page.getByRole("button", { name: "飲料水を使う" })).toBeDisabled();
+  const safe = page.getByRole("button", { name: "入口の箱を回収する" });
+  await expect(safe).toHaveAccessibleDescription(/1時間.*気力 −4.*飲料水 \+1個.*保存食 \+1個/);
+  await expect(page.getByRole("button", { name: "棚の奥まで踏み込む" })).toHaveAccessibleDescription(/負傷する可能性/);
+  await page.reload(); await expect(title).toBeFocused();
+  await expect(page.getByTestId("remaining")).toHaveText("47");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: `test-results/event-${width}.png`, fullPage: true });
+  await safe.focus(); await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "探索の記録" })).toBeFocused();
+  await expect(page.getByText("入口の箱から飲料水 ×1、保存食 ×1を回収した。", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("remaining")).toHaveText("46");
+  await expect(page.getByTestId("item-water")).toHaveText("×3");
+  await page.reload(); await expect(title).toHaveCount(0);
+  await expect(page.getByTestId("remaining")).toHaveText("46");
+  await move(page, "B6"); await move(page, "B5"); await expect(title).toHaveCount(0);
+});
+
+test("未来の主保存は旧保存があっても保護し、通常プレイと再読込で原文を変えない", async ({ page }) => {
+  const original = '{ "version": 87, "progress": "do not lose" }';
+  await page.addInitScript(({ original, legacy }) => {
+    if (localStorage.getItem("afterlight.save.v2") === null) localStorage.setItem("afterlight.save.v2", original);
+    localStorage.setItem("afterlight.save.v1", legacy);
+  }, { original, legacy: JSON.stringify({ ...newGame(), version: 1, turn: 10 }) });
+  await page.goto("/");
+  await expect(page.getByRole("status")).toContainText("対応していません");
+  await expect(page.getByTestId("remaining")).toHaveText("48");
+  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBe(original);
+  await page.reload(); await expect(page.getByTestId("remaining")).toHaveText("48");
+  expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBe(original);
+  await page.getByRole("button", { name: "新しい探索", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("元のデータ");
+  await page.getByRole("button", { name: "新しい探索を始める" }).click();
+  expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2.original.0"))).toBe(original);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("afterlight.save.v2")!).version)).toBe(2);
+});
+
+test("旧保存は移行後も原文を保持し、直前の保存を確認して復旧する", async ({ page }) => {
+  const legacy = JSON.stringify({ ...newGame(), version: 1, turn: 9 }, null, 2);
+  await page.addInitScript(legacy => {
+    if (!localStorage.getItem("afterlight.save.v1")) localStorage.setItem("afterlight.save.v1", legacy);
+  }, legacy);
+  await page.goto("/");
+  await expect(page.getByTestId("remaining")).toHaveText("39");
+  expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBeNull();
+  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  await page.getByRole("button", { name: "飲料水を使う" }).click();
+  await expect(page.getByTestId("remaining")).toHaveText("37");
+  expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v1"))).toBe(legacy);
+  await page.getByText("保存の確認・復旧", { exact: true }).click();
+  await page.getByRole("button", { name: "ひとつ前の保存に戻す" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: "キャンセル" }).click();
+  await expect(page.getByTestId("remaining")).toHaveText("37");
+  await page.getByRole("button", { name: "ひとつ前の保存に戻す" }).click();
+  await page.getByRole("button", { name: "保存を戻す", exact: true }).click();
+  await expect(page.getByTestId("remaining")).toHaveText("38");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("afterlight.save.v2.original.0")!).turn)).toBe(11);
+  await page.reload(); await expect(page.getByTestId("remaining")).toHaveText("38");
+  expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v1"))).toBe(legacy);
+});
+
+test("バックアップ容量エラーで主保存を保護し、再読込で最後の保存へ戻る", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  const original = await page.evaluate(() => localStorage.getItem("afterlight.save.v2"));
+  await page.evaluate(() => {
+    const write = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key === "afterlight.save.v2.backup") throw new DOMException("quota", "QuotaExceededError");
+      return write.call(this, key, value);
+    };
+  });
+  await page.getByRole("button", { name: "飲料水を使う" }).click();
+  await expect(page.getByRole("status")).toContainText("自動保存できませんでした");
+  await expect(page.getByTestId("remaining")).toHaveText("46");
+  expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBe(original);
+  await page.reload(); await expect(page.getByTestId("remaining")).toHaveText("47");
+});
+
+test("原文を退避できないリセットは元の保存を置き換えない", async ({ page }) => {
+  const original = "{original-broken";
+  await page.addInitScript(original => {
+    localStorage.setItem("afterlight.save.v2", original);
+    const write = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key.startsWith("afterlight.save.v2.original.")) throw new DOMException("quota", "QuotaExceededError");
+      return write.call(this, key, value);
+    };
+  }, original);
+  await page.goto("/");
+  await page.getByRole("button", { name: "新しい探索", exact: true }).click();
+  await page.getByRole("button", { name: "新しい探索を始める" }).click();
+  await expect(page.getByRole("status")).toContainText("保存の切り替えを確認できませんでした");
+  await page.getByRole("button", { name: "周囲を探索する" }).click();
+  expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBe(original);
 });

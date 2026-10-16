@@ -1,6 +1,10 @@
 export const SIZE = 7;
 export const MAX_TURNS = 48;
-export const SAVE_KEY = "afterlight.save.v1";
+export const SAVE_KEY = "afterlight.save.v2";
+export const LEGACY_SAVE_KEY = "afterlight.save.v1";
+export const EVENT_ID = "collapsed-cache";
+export type EventId = typeof EVENT_ID;
+export type ChoiceId = "safe" | "deep" | "leave";
 export type Terrain =
   | "ruins"
   | "street"
@@ -18,7 +22,10 @@ export interface Tile {
   terrain: Terrain;
 }
 export interface GameState {
-  version: 1;
+  version: 2;
+  contentVersion: 1;
+  pendingEvent: { id: EventId; tile: number } | null;
+  resolvedEvents: EventId[];
   turn: number;
   position: number;
   health: number;
@@ -37,7 +44,8 @@ export type Action =
   | { type: "search" }
   | { type: "rest" }
   | { type: "use"; item: Item }
-  | { type: "signal" };
+  | { type: "signal" }
+  | { type: "choose"; event: EventId; tile: number; choice: ChoiceId };
 
 export const ITEM_NAMES: Record<Item, string> = {
   water: "飲料水",

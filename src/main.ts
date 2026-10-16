@@ -1,3 +1,4 @@
+import { CACHE_EVENT } from "./game/events";
 import { assessAction } from "./game/actions";
 import type { Stat } from "./game/actions";
 import "./style.css";
@@ -7,15 +8,15 @@ import {
   coordinates,
   ITEM_NAMES,
   MAX_TURNS,
-  SAVE_KEY,
+  EVENT_ID,
   TERRAIN,
   TILES,
   TOWER,
   neighbors,
   tileAt,
 } from "./game/model";
-import type { Action, GameState, Item } from "./game/model";
-import { deserialize } from "./game/save";
+import type { Action, ChoiceId, Item } from "./game/model";
+import { SaveStore } from "./game/storage";
 import { icon } from "./icons";
 
 const escape = (value: string) =>
@@ -26,47 +27,41 @@ const escape = (value: string) =>
         char
       ]!,
   );
-let notice = "";
-let state: GameState = newGame();
-try {
-  const raw = localStorage.getItem(SAVE_KEY);
-  if (raw) {
-    const saved = deserialize(raw);
-    if (saved) state = saved;
-    else notice = "保存データを読み込めなかったため、新しい探索を始めました。";
-  }
-} catch {
-  notice =
-    "このブラウザでは保存できません。ページを閉じると進行状況が失われます。";
-}
+const store = new SaveStore(() => localStorage);
+let state = store.load();
 let selected = state.position;
-let saveAvailable = !notice.includes("保存できません");
+let focusEvent = state.pendingEvent !== null;
+let focusOutcome = false;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
   <div id="game"></div>
   <dialog id="help-dialog" aria-labelledby="help-title">
     <span class="eyebrow">FIELD MANUAL / 01</span><h2 id="help-title">この街で、生き延びる。</h2>
     <p>北東の通信塔へ向かい、<strong>スクラップ3個</strong>で救難信号を送ってください。残された時間は48時間です。</p>
-    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地を「探索」して水や食料を集めます。各地点は一度だけ探索できます。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。どの行動も1時間かかります。</li><li>満腹度・水分が0だと体力が減ります。廃墟では負傷することもあります。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
+    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地を「探索」して水や食料を集めます。各地点は一度だけ探索できます。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。通常の行動は1時間かかります。廃墟で出来事に出会ったら、費用と危険を読んで選択してください。立ち去る選択は時間を使いません。</li><li>満腹度・水分が0だと体力が減ります。廃墟では負傷することもあります。</li><li>通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
     <p class="muted">進行状況はこのブラウザに自動保存されます。Tab と Enter、またはタップ・クリックで操作できます。</p>
     <form method="dialog"><button class="button primary">探索に戻る ${icon("arrow")}</button></form>
   </dialog>
   <dialog id="reset-dialog" aria-labelledby="reset-title">
     <span class="eyebrow">NEW EXPEDITION</span><h2 id="reset-title">もう一度、夜明けから。</h2>
-    <p>現在の進行状況を消して、新しい探索を始めます。</p>
+    <p>新しい探索に切り替えます。保存を置き換える前に元のデータをブラウザ内へ退避します。以前の保存や退避データは削除しません。退避できない場合は、保存せずに遊べます。</p>
     <div class="dialog-actions"><form method="dialog"><button class="button secondary">キャンセル</button></form><button class="button primary" data-action="reset-confirm">新しい探索を始める</button></div>
-  </dialog>`;
+  </dialog>
+  <dialog id="restore-dialog" aria-labelledby="restore-title"><h2 id="restore-title">ひとつ前の保存に戻す</h2><p>最後に保存する直前の状態へ戻ります。現在の保存は先にブラウザ内へ退避し、退避できた場合だけ置き換えます。画面上の未保存の進行は引き継ぎません。</p><div class="dialog-actions"><form method="dialog"><button class="button secondary">キャンセル</button></form><button class="button primary" data-action="restore-confirm">保存を戻す</button></div></dialog>`;
 const game = document.querySelector<HTMLDivElement>("#game")!;
 
-function save(): void {
-  try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-    saveAvailable = true;
-  } catch {
-    saveAvailable = false;
-    notice =
-      "自動保存できませんでした。ページを閉じると今回の進行状況が失われる可能性があります。";
-  }
+function save(): void { store.save(state); }
+
+function recovery(): string {
+  return `<section class="recovery panel" aria-label="保存の確認"><details ${store.mode !== "ready" ? "open" : ""}><summary>保存の確認・復旧</summary><p>自動保存のひとつ前の状態に戻せます。復旧や新しい探索では、置き換える元のデータをブラウザ内に退避します。以前の探索の保存は保持します。</p>${store.mode !== "ready" ? '<p>現在は画面上だけで進行します。再読込すると未保存の進行は失われます。対応していない保存は、対応するゲームで再開してください。</p>' : ""}<button class="button secondary" data-action="restore" ${store.backup() ? "" : "disabled"}>ひとつ前の保存に戻す</button>${!store.backup() ? '<p class="muted">復旧できる保存はありません。</p>' : ""}</details></section>`;
+}
+function eventPanel(): string {
+  const pending = state.pendingEvent;
+  if (!pending) return "";
+  return `<section class="event-panel panel" aria-labelledby="event-title"><span class="eyebrow">${coordinates(pending.tile)} / 発見</span><h2 id="event-title" tabindex="-1">${CACHE_EVENT.title}</h2><p>${CACHE_EVENT.story}</p><p>ここでどうするか、選んでください。判断する間は時間が進みません。</p><div class="event-choices">${CACHE_EVENT.choices.map(choice => {
+    const info = guidance({ type: "choose", event: pending.id, tile: pending.tile, choice: choice.id }, `guide-choice-${choice.id}`);
+    return `<div class="event-choice"><p>${choice.detail}</p><button class="button ${choice.id === "leave" ? "secondary" : "primary"}" data-choice="${choice.id}" data-event="${pending.id}" data-event-tile="${pending.tile}" data-focus="choice-${choice.id}" ${info.disabled}>${choice.label}</button>${info.details}</div>`;
+  }).join("")}</div></section>`;
 }
 
 function stat(
@@ -112,10 +107,11 @@ function guidance(action: Action, id: string): { disabled: string; details: stri
   const assessment = assessAction(state, action);
   const costs = Object.entries(assessment.costs).map(([key, amount]) => `${statNames[key as Stat]} −${amount}`);
   const supplies = Object.entries(assessment.supplies).map(([key, amount]) => `${ITEM_NAMES[key as Item]} ${amount}個を消費`);
+  const rewards = Object.entries(assessment.rewards).map(([key, amount]) => `${ITEM_NAMES[key as Item]} +${amount}個`);
   const recovery = Object.entries(assessment.recovery).map(([key, amount]) => `${statNames[key as Stat]} +${amount}（実回復 +${Math.min(amount!, 100 - state[key as Stat])}）`);
   return {
     disabled: `${assessment.allowed ? "" : "disabled"} aria-describedby="${id}"`,
-    details: `<div id="${id}" class="action-details"><p class="action-cost">${[`${assessment.hours}時間`, ...supplies, ...costs].join(" / ")}</p>${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("")}${assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("")}</div>`,
+    details: `<div id="${id}" class="action-details"><p class="action-cost">${[`${assessment.hours}時間`, ...supplies, ...costs].join(" / ")}</p>${rewards.length ? `<p class="action-effect">収穫：${rewards.join(" / ")}</p>` : ""}${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("")}${assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("")}</div>`,
   };
 }
 function actionButton(action: Action, label: string, glyph: string, style = "primary"): string {
@@ -162,17 +158,21 @@ function render(): void {
     <header class="site-header"><a class="brand" href="./" aria-label="AFTERLIGHT 残光の街"><span class="brand-mark">A<span></span></span><span>AFTERLIGHT<small>残光の街 / SURVIVAL EXPEDITION</small></span></a><nav aria-label="ゲームメニュー"><span class="edition">PROTOTYPE / 0.1</span><button class="text-button" data-action="help">遊び方 <span class="help-symbol">?</span></button><button class="text-button" data-action="reset">新しい探索 ${icon("arrow")}</button></nav></header>
     <main><section class="intro"><div><span class="eyebrow"><span class="accent-dash"></span> THE CITY WENT SILENT. YOU DIDN’T.</span><h1>街は眠った。<span>あなたは、まだ。</span></h1><p>拾い集めたわずかな希望を、明日につなげ。</p></div><div class="time-panel"><div>${icon("sun")} 薄曇り <span>14°C</span></div><strong data-testid="clock">${clock(state.turn)}</strong><span class="time-remaining">救難電波が途絶えるまで <b data-testid="remaining">${MAX_TURNS - state.turn}</b> 時間</span></div></section>
     <p class="mobile-mission">${icon("tower")} 目標：G1 の通信塔で救難信号を送る <span>部品 ${state.inventory.scrap}/3</span></p>
-    ${notice ? `<div class="notice" role="status">${escape(notice)}</div>` : ""}
+    ${store.message ? `<div class="notice" role="status">${escape(store.message)}</div>` : ""}
     ${ending()}
+    ${eventPanel()}
     <div class="workspace"><aside class="survivor panel" aria-labelledby="survivor-title"><div class="panel-overline">SURVIVOR / 01</div><div class="survivor-id"><div class="survivor-avatar"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 58c0-17 6-24 18-24s18 7 18 24M22 34c-8-17-4-28 10-28s18 11 10 28Z" fill="currentColor"/><path d="M24 20h16l-3 12H27Z" fill="#202720"/><path d="M30 39v16m7-16 5 15" stroke="#202720" stroke-width="3"/></svg></div><h2 id="survivor-title">名前のない旅人<small>${active ? "● 生存中" : state.status === "won" ? "● 脱出成功" : "探索終了"}</small></h2></div>
       <div class="stats">${stat("health", "体力", "health")}${stat("hunger", "満腹度", "food")}${stat("thirst", "水分", "water")}${stat("energy", "気力", "energy")}</div>
       <div class="mission"><span class="eyebrow">YOUR OBJECTIVE</span><h3>${icon("tower")} 最後の救難信号</h3><p>北東の通信塔に到達し、<br>送信機を修理する。</p><div><span>スクラップ</span><strong>${String(Math.min(state.inventory.scrap, 3)).padStart(2, "0")} <small>/ 03</small></strong></div><div class="mission-progress"><span style="width:${Math.min((state.inventory.scrap / 3) * 100, 100)}%"></span></div><span class="mission-coordinate">目標地点 G1 ↗</span></div>
     </aside>
     <section class="map-panel panel" aria-labelledby="map-title"><div class="section-heading"><div><span class="eyebrow">EXCLUSION ZONE</span><h2 id="map-title">第07隔離区域</h2></div><div class="map-coordinate">${icon("location")}現在地 <strong data-testid="position">${coordinates(state.position)}</strong></div></div>${map()}<div class="map-footer"><span>${icon("location")} 地点を選択して、次の行動を決める</span><span>N ↑</span></div></section>
     ${location()}</div>
-    <div class="bottom-grid">${inventory()}<section class="journal panel" aria-labelledby="journal-title"><div class="section-heading"><h2 id="journal-title">探索の記録</h2><span>FIELD NOTES</span></div><div class="journal-entries" role="log" aria-live="polite" aria-label="探索の記録">${state.log.map((entry) => `<div class="log-entry log-${entry.kind}"><time>${clock(entry.turn).slice(-5)}</time><p>${escape(entry.text)}</p></div>`).join("")}</div></section></div>
-    <footer><span>AFTERLIGHT <span class="footer-divider">/</span> 明日を迎えるための、小さな選択。</span><span class="save-status">${icon(saveAvailable ? "check" : "scrap")}${saveAvailable ? "このブラウザに自動保存" : "保存できません"}</span></footer></main>`;
-  if (focus)
+    <div class="bottom-grid">${inventory()}<section class="journal panel" aria-labelledby="journal-title"><div class="section-heading"><h2 id="journal-title" tabindex="-1">探索の記録</h2><span>FIELD NOTES</span></div><div class="journal-entries" role="log" aria-live="polite" aria-label="探索の記録">${state.log.map((entry) => `<div class="log-entry log-${entry.kind}"><time>${clock(entry.turn).slice(-5)}</time><p>${escape(entry.text)}</p></div>`).join("")}</div></section></div>
+    ${recovery()}
+    <footer><span>AFTERLIGHT <span class="footer-divider">/</span> 明日を迎えるための、小さな選択。</span><span class="save-status">${icon(store.mode === "ready" ? "check" : "scrap")}${store.mode === "ready" ? "このブラウザに自動保存" : "保存せずにプレイ中"}</span></footer></main>`;
+  if (focusEvent) { game.querySelector<HTMLElement>("#event-title")?.focus(); focusEvent = false; }
+  else if (focusOutcome) { game.querySelector<HTMLElement>("#journal-title")?.focus(); focusOutcome = false; }
+  else if (focus)
     game
       .querySelector<HTMLElement>(`[data-focus="${CSS.escape(focus)}"]`)
       ?.focus({ preventScroll: true });
@@ -187,7 +187,7 @@ app.addEventListener("click", (event) => {
     return;
   }
   const command = button.dataset.action;
-  if (command === "help" || command === "reset") {
+  if (command === "help" || command === "reset" || command === "restore") {
     document
       .querySelector<HTMLDialogElement>(`#${command}-dialog`)!
       .showModal();
@@ -197,10 +197,15 @@ app.addEventListener("click", (event) => {
     document.querySelector<HTMLDialogElement>("#reset-dialog")!.close();
     state = newGame();
     selected = state.position;
-    notice = "";
-    save();
+    store.replace(state);
     render();
     return;
+  }
+  if (command === "restore-confirm") {
+    document.querySelector<HTMLDialogElement>("#restore-dialog")!.close();
+    const backup = store.backup();
+    if (backup && store.replace(backup)) { state = backup; selected = state.position; focusEvent = !!state.pendingEvent; }
+    render(); return;
   }
   if (command === "current") {
     selected = state.position;
@@ -213,9 +218,12 @@ app.addEventListener("click", (event) => {
     action = { type: command };
   if (button.dataset.item)
     action = { type: "use", item: button.dataset.item as Item };
+  if (button.dataset.choice) action = { type: "choose", event: button.dataset.event as typeof EVENT_ID, tile: Number(button.dataset.eventTile), choice: button.dataset.choice as ChoiceId };
   if (!action) return;
   const next = act(state, action);
   if (next === state) return;
+  focusEvent = !state.pendingEvent && !!next.pendingEvent;
+  focusOutcome = !!state.pendingEvent && !next.pendingEvent;
   state = next;
   save();
   render();

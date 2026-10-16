@@ -89,7 +89,8 @@ describe("探索と行動", () => {
     expect(act(s, { type: "use", item: "scrap" })).toBe(s);
   });
   it("同じ保存状態からの探索は同じ負傷結果になる", () => {
-    const s = act(newGame(), { type: "move", target: 29 });
+    const pending = act(newGame(), { type: "move", target: 29 });
+    const s = act(pending, { type: "choose", event: "collapsed-cache", tile: 29, choice: "leave" });
     const a = act(s, { type: "search" });
     expect(a).toEqual(act(structuredClone(s), { type: "search" }));
     expect(a.inventory.scrap).toBe(2);
@@ -168,6 +169,7 @@ describe("勝敗と一連のプレイ", () => {
     const route: Action[] = [
       { type: "search" },
       { type: "move", target: 29 },
+      { type: "choose", event: "collapsed-cache", tile: 29, choice: "leave" },
       { type: "search" },
       { type: "move", target: 30 },
       { type: "search" },
