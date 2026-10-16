@@ -4,7 +4,7 @@
 
 - リポジトリ: `TomofumiYabu/Scavenger-SuvGame`
 - 公開ブランチ: `main`
-- 配信予定URL: `https://tomofumiyabu.github.io/Scavenger-SuvGame/`
+- 配信URL: `https://tomofumiyabu.github.io/Scavenger-SuvGame/`（2026-10-16にユーザーが設定・動作確認を完了）
 - 配信方式: GitHub Actions → 検証済み `dist/` → GitHub Pages
 - ワークフロー: `.github/workflows/pages.yml`
 

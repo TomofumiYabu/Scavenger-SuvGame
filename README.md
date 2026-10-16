@@ -30,7 +30,7 @@ npm run check
 npm run build
 ```
 
-公開先は GitHub Pages。予定URLは `https://tomofumiyabu.github.io/Scavenger-SuvGame/` です。公開状況は [進捗](docs/PROGRESS.md) に記録します。
+公開先は GitHub Pages。[ブラウザで遊ぶ](https://tomofumiyabu.github.io/Scavenger-SuvGame/)。2026-10-16にユーザーが設定と動作確認を完了しました。確認の範囲は [進捗](docs/PROGRESS.md) に記録しています。
 
 `main` にプッシュすると GitHub Actions が依存導入、ユニットテスト、型チェック、ビルド、ブラウザテストを行い、成功した `dist/` を公開します。Pull Request では検証だけを実行します。初回の Pages 有効化と、公開の確認方法は [公開手順](docs/DEPLOYMENT.md) を参照してください。
 
@@ -42,6 +42,8 @@ npm run build
 
 - [開発ルール](AGENTS.md)
 - [ゲーム仕様](docs/SPEC.md)
+- [品質向上の行動計画](docs/ROADMAP.md)
+- [次の開発課題](docs/BACKLOG.md)
 - [技術構成・設計](docs/ARCHITECTURE.md)
 - [Cloud のセットアップ・検証手順](docs/DEVELOPMENT.md)
 - [GitHub Pages 公開手順](docs/DEPLOYMENT.md)
