@@ -5,7 +5,7 @@ import { SAVE_KEY, LEGACY_SAVE_KEY, neighbors } from "./model";
 import { decodeSave } from "./save";
 import { ARCHIVE_PREFIX, BACKUP_KEY, SaveStore } from "./storage";
 import type { StorageAccess } from "./storage";
-import { withoutRecap } from "../../tests/fixtures";
+import { withoutRecap } from "../../test-support/fixtures";
 
 function old6(pending = true) {
   return {

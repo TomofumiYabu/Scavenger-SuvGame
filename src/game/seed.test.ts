@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, newGame } from "./engine";
-import { newLegacyGame, withoutMission } from "./legacy.fixture";
+import { newLegacyGame, withoutMission } from "../../test-support/fixtures";
 import { SAVE_KEY } from "./model";
 import { decodeSave } from "./save";
 import { BACKUP_KEY, SaveStore } from "./storage";

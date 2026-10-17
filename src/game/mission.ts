@@ -11,7 +11,7 @@ export const RELAY_SITES = [
 export type RelayId = (typeof RELAY_SITES)[number]["tile"];
 export type Mission = { ruleset: "legacy"; repairedRelay: null } | { ruleset: "relay-v1"; repairedRelay: RelayId | null };
 export function relayAt(tile: number) { return RELAY_SITES.find(site => site.tile === tile); }
-export function missionDetails(state: GameState) {
+export function missionDetails(state: Pick<GameState, "mission">) {
   const requiresRelay = state.mission.ruleset === "relay-v1";
   return {
     requiresRelay,

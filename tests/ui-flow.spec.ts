@@ -2,7 +2,7 @@ import { menuButton, mapTile, openMenu } from "./menus";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { act } from "../src/game/engine";
-import { legacyGame as newGame } from "./fixtures";
+import { legacyGame as newGame } from "../test-support/fixtures";
 import { neighbors } from "../src/game/model";
 import type { GameState } from "../src/game/model";
 

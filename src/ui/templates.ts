@@ -1,6 +1,6 @@
-import { ITEMS, ITEM_IDS, CAPACITY, inventoryLoad } from "../game/items";
-import { eventById, eventChoice, eventForTerrain } from "../game/events";
-import { assessAction, SEARCH_METHODS } from "../game/actions";
+import { ITEMS, ITEM_IDS, CAPACITY, STAT_MAX, STAT_NAMES, inventoryLoad } from "../game/items";
+import { EVENTS, eventById, eventChoice, eventForTerrain } from "../game/events";
+import { assessAction, SEARCH_METHODS, ACTION_RULES, CAREFUL_BONUS_QUANTITY, CAREFUL_EXTRA_QUANTITY, STARVATION_DAMAGE, RUINS_DAMAGE } from "../game/actions";
 import type { Stat } from "../game/actions";
 import {
   clock,
@@ -23,13 +23,16 @@ import { escape, outcomePanel } from "./outcome";
 import type { Outcome } from "./outcome";
 import { recapPanel } from "./recap";
 
+const handbookMission = missionDetails({ mission: { ruleset: "relay-v1", repairedRelay: null } });
+const handbookLegacy = missionDetails({ mission: { ruleset: "legacy", repairedRelay: null } });
+
 export const shell = `
   <div id="game"></div>
   <dialog id="help-dialog" aria-labelledby="help-title">
     <span class="eyebrow">FIELD MANUAL / 01</span><h2 id="help-title" tabindex="-1" autofocus>この街で、生き延びる。</h2>
-    <p>新しい探索では、まず<strong>A2 西の中継所（スクラップ4個・4時間）</strong>か<strong>G6 東の中継所（スクラップ6個・2時間）</strong>のどちらかを復旧します。その後、<strong>G1 通信塔（スクラップ4個・2時間）</strong>で送信してください。残された時間は48時間です。以前の探索は従来の「通信塔でスクラップ3個・1時間」の目標を引き継ぎます。現在の条件は「目標」で確認できます。</p>
-    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地で「手早く探す」（1時間）か「慎重に探す」（2時間）を選びます。慎重な探索は負傷せず、主な物資を1個多く、地形ごとの追加物資も1個得ます。どちらか一度でその地点は探索済みになります。見つけた物資は地点に残るので、現在地の「地点に残した物」から必要な分を拾います。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。移動・休息・所持品の使用は1時間です。中継所の修理と送信は、目標に表示される時間を使います。出来事は全6件です。廃墟・診療所・避難所では移動後、道路・緑地・通信塔では探索後に出会います（各1回）。探索後の出来事では探索方式で選択の費用・収穫が変わります。探索ボタンの予告を読み、出来事では費用と危険を確認してください。立ち去る選択は0時間・消費なしです。</li><li>満腹度・水分が0の時間ごとに、それぞれ体力が12減ります。廃墟の手早い探索では負傷することもあります。</li><li>バックパックの容量は24です。容量は各物資に表示されます。探索・出来事で見つけた物資は地点に残ります。入る分だけ拾い、バックパックの「1個置く」で空きを作れます。拾う・置くは0時間。置いた物も残り、移動・再訪・再読込でも失われません。出来事の選択中や探索終了後は拾う・置くを行えません。</li><li>新しい探索では中継所で「中継所を修理する」。通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
-    <p>廃墟の手早い探索・備蓄庫の奥では、体力−10と軽い負傷の危険があります。負傷中は移動・探索の1時間ごとに気力を追加で2消費します（表示費用に含む）。慎重な探索なら探索による負傷を避けられます。包帯・救急キット、診療所の処置、避難所の休息・睡眠で治療でき、体力100でも治療できます。避難所以外の休息や、食事・飲料による回復では治りません。包帯は雨水のろ過にも使うため、治療用に残すかを選びましょう。</p>
+    <p>新しい探索では、まず${handbookMission.sites.map(site => `<strong>${site.coordinates} ${site.name}（スクラップ${site.scrap}個・${site.hours}時間）</strong>`).join("か")}のどちらかを復旧します。その後、<strong>${coordinates(TOWER)} 通信塔（スクラップ${handbookMission.signal.scrap}個・${handbookMission.signal.hours}時間）</strong>で送信してください。残された時間は${MAX_TURNS}時間です。以前の探索は従来の「通信塔でスクラップ${handbookLegacy.signal.scrap}個・${handbookLegacy.signal.hours}時間」の目標を引き継ぎます。現在の条件は「目標」で確認できます。</p>
+    <ol><li>六角形マップの辺を共有する隣接地点（最大6方向）を選び「ここへ移動」。移動すると周囲が見えるようになります。</li><li>現在地で「${SEARCH_METHODS.quick.label}」（${SEARCH_METHODS.quick.hours}時間）か「${SEARCH_METHODS.careful.label}」（${SEARCH_METHODS.careful.hours}時間）を選びます。慎重な探索は負傷せず、主な物資を${CAREFUL_BONUS_QUANTITY}個多く、地形ごとの追加物資も${CAREFUL_EXTRA_QUANTITY}個得ます。どちらか一度でその地点は探索済みになります。見つけた物資は地点に残るので、現在地の「地点に残した物」から必要な分を拾います。</li><li>所持品の「使う」で回復。「休息」で気力を回復します。移動は${ACTION_RULES.move.hours}時間、休息は${ACTION_RULES.rest.hours}時間、所持品の使用は${ACTION_RULES.use.hours}時間です。中継所の修理と送信は、目標に表示される時間を使います。出来事は全${EVENTS.length}件です。廃墟・診療所・避難所では移動後、道路・緑地・通信塔では探索後に出会います（各1回）。探索後の出来事では探索方式で選択の費用・収穫が変わります。探索ボタンの予告を読み、出来事では費用と危険を確認してください。立ち去る選択の費用は、選択肢の案内で確認できます。</li><li>満腹度・水分が0の時間ごとに、それぞれ体力が${STARVATION_DAMAGE}減ります。廃墟の手早い探索では負傷することもあります。</li><li>バックパックの容量は${CAPACITY}です。容量は各物資に表示されます。探索・出来事で見つけた物資は地点に残ります。入る分だけ拾い、バックパックの「1個置く」で空きを作れます。拾う・置くは${ACTION_RULES.transfer.hours}時間。置いた物も残り、移動・再訪・再読込でも失われません。出来事の選択中や探索終了後は拾う・置くを行えません。</li><li>新しい探索では中継所で「中継所を修理する」。通信塔に到着したら「救難信号を送る」。死亡や時間切れになる前に脱出しましょう。</li></ol>
+    <p>廃墟の手早い探索・備蓄庫の奥では、体力−${RUINS_DAMAGE}と軽い負傷の危険があります。負傷中は移動・探索の1時間ごとに気力を追加で${WOUND_ENERGY_PER_HOUR}消費します（表示費用に含む）。慎重な探索なら探索による負傷を避けられます。包帯・救急キット、診療所の処置、避難所の休息・睡眠で治療でき、体力${STAT_MAX}でも治療できます。避難所以外の休息や、食事・飲料による回復では治りません。包帯は雨水のろ過にも使うため、治療用に残すかを選びましょう。</p>
     <p class="muted">進行状況はこのブラウザに自動保存されます。Tab と Enter、またはタップ・クリックで操作できます。</p>
     <form method="dialog"><button class="button primary">探索に戻る ${icon("arrow")}</button></form>
   </dialog>
@@ -51,7 +54,7 @@ function eventPanel(): string {
   const pending = state.pendingEvent;
   if (!pending) return "";
   const event = eventById(pending.id)!;
-  return `<section class="event-panel panel" aria-labelledby="event-title"><span class="eyebrow">${coordinates(pending.tile)} / 発見</span><h2 id="event-title" tabindex="-1">${event.title}</h2><p>${event.story}</p>${pending.searchMode ? `<p class="event-search-context">現在地 ${coordinates(pending.tile)} で「${SEARCH_METHODS[pending.searchMode].label}」を実行済みです。探索の時間・消費は確定し、見つけた物資は地点に残っています。以下は追加の選択です。物資は選択後に拾えます。</p>` : ""}<p>ここでどうするか、選んでください。判断する間は時間が進みません。立ち去る選択は0時間・消費なしです。</p><div class="event-choices">${event.choices.map(raw => {
+  return `<section class="event-panel panel" aria-labelledby="event-title"><span class="eyebrow">${coordinates(pending.tile)} / 発見</span><h2 id="event-title" tabindex="-1">${event.title}</h2><p>${event.story}</p>${pending.searchMode ? `<p class="event-search-context">現在地 ${coordinates(pending.tile)} で「${SEARCH_METHODS[pending.searchMode].label}」を実行済みです。探索の時間・消費は確定し、見つけた物資は地点に残っています。以下は追加の選択です。物資は選択後に拾えます。</p>` : ""}<p>ここでどうするか、選んでください。判断する間は時間が進みません。立ち去る選択は${eventChoice(pending.id, "leave", pending.searchMode)!.hours}時間・消費なしです。</p><div class="event-choices">${event.choices.map(raw => {
     const choice = eventChoice(pending.id, raw.id, pending.searchMode)!;
     const info = guidance({ type: "choose", event: pending.id, tile: pending.tile, choice: choice.id }, `guide-choice-${choice.id}`);
     return `<div class="event-choice"><p>${choice.detail}</p><button class="button ${choice.id === "leave" ? "secondary" : "primary"}" data-choice="${choice.id}" data-event="${pending.id}" data-event-tile="${pending.tile}" data-focus="choice-${choice.id}" ${info.disabled}>${choice.label}</button>${info.details}</div>`;
@@ -64,15 +67,15 @@ function stat(
   glyph: string,
 ): string {
   const value = state[key];
-  return `<button class="stat ${value <= 25 ? "critical" : ""}" data-panel="${key === "energy" ? "location" : "inventory"}" data-focus="stat-${key}" aria-label="${label} ${value} / 100：${key === "energy" ? "休息を選ぶ" : key === "health" ? "治療用の所持品を見る" : key === "thirst" ? "飲料を使う" : "食料を使う"}">
-    <div class="stat-heading"><span>${icon(glyph)}${label}</span><strong data-testid="${key}">${value}<small> / 100</small></strong></div>
-    <div class="stat-track" role="meter" aria-label="${label}" aria-valuenow="${value}" aria-valuemin="0" aria-valuemax="100"><span style="width:${value}%"></span></div>
+  return `<button class="stat ${value <= 25 ? "critical" : ""}" data-panel="${key === "energy" ? "location" : "inventory"}" data-focus="stat-${key}" aria-label="${label} ${value} / ${STAT_MAX}：${key === "energy" ? "休息を選ぶ" : key === "health" ? "治療用の所持品を見る" : key === "thirst" ? "飲料を使う" : "食料を使う"}">
+    <div class="stat-heading"><span>${icon(glyph)}${label}</span><strong data-testid="${key}">${value}<small> / ${STAT_MAX}</small></strong></div>
+    <div class="stat-track" role="meter" aria-label="${label}" aria-valuenow="${value}" aria-valuemin="0" aria-valuemax="${STAT_MAX}"><span style="width:${100 * value / STAT_MAX}%"></span></div>
     <span class="stat-caption">${value <= 25 ? "低下しています" : key === "health" ? state.wound === "minor" ? "軽い負傷 · 治療する" : "治療用の物資を見る" : key === "hunger" ? "食料で回復" : key === "thirst" ? "飲料水で回復" : "休息で回復"}</span>
   </button>`;
 }
 
 function condition(): string {
-  return `<div class="condition ${state.wound === "minor" ? "condition-wounded" : ""}" data-testid="condition" role="group" aria-label="現在の負傷状態"><h3>現在の状態：${WOUND_NAMES[state.wound]}</h3><p>${state.wound === "minor" ? `移動・探索は1時間ごとに気力 −${WOUND_ENERGY_PER_HOUR}追加（表示費用に含む）。` : "移動・探索への追加消費なし。"}</p><p ${state.wound === "minor" ? "" : "hidden"}>治療：包帯・救急キット、診療所、避難所の休息・睡眠。</p><details><summary>負傷と治療について</summary><p>慎重な探索なら探索による負傷を避けられます。軽い負傷は重複せず、自然悪化しません。</p><p>体力100でも治療できます。避難所以外の休息や食事・飲料による回復では治りません。</p><p>包帯は雨水のろ過にも使います。治療用に残すか、補給に使うか選べます。</p></details></div>`;
+  return `<div class="condition ${state.wound === "minor" ? "condition-wounded" : ""}" data-testid="condition" role="group" aria-label="現在の負傷状態"><h3>現在の状態：${WOUND_NAMES[state.wound]}</h3><p>${state.wound === "minor" ? `移動・探索は1時間ごとに気力 −${WOUND_ENERGY_PER_HOUR}追加（表示費用に含む）。` : "移動・探索への追加消費なし。"}</p><p ${state.wound === "minor" ? "" : "hidden"}>治療：包帯・救急キット、診療所、避難所の休息・睡眠。</p><details><summary>負傷と治療について</summary><p>慎重な探索なら探索による負傷を避けられます。軽い負傷は重複せず、自然悪化しません。</p><p>体力${STAT_MAX}でも治療できます。避難所以外の休息や食事・飲料による回復では治りません。</p><p>包帯は雨水のろ過にも使います。治療用に残すか、補給に使うか選べます。</p></details></div>`;
 }
 
 function map(): string {
@@ -104,24 +107,22 @@ function map(): string {
   </div>`;
 }
 
-const statNames: Record<Stat, string> = { health: "体力", hunger: "満腹度", thirst: "水分", energy: "気力" };
-
 function guidance(action: Action, id: string): { disabled: string; details: string } {
   const assessment = assessAction(state, action);
   const encounter = action.type === "search" ? eventForTerrain(tileAt(state.position).terrain, "search") : undefined;
   const searchHint = encounter && !state.searched.includes(state.position) && !state.resolvedEvents.includes(encounter.id)
-    ? `<p class="action-effect search-encounter-hint">探索後、生存・時間内なら「${encounter.title}」に出会います。${encounter.searchHint ?? ""} 追加の時間・物資を使うかは選べます。立ち去る選択は0時間・消費なしです。</p>` : "";
-  const costs = Object.entries(assessment.costs).map(([key, amount]) => `${statNames[key as Stat]} −${amount}`);
+    ? `<p class="action-effect search-encounter-hint">探索後、生存・時間内なら「${encounter.title}」に出会います。${encounter.searchHint ?? ""} 追加の時間・物資を使うかは選べます。立ち去る選択は${eventChoice(encounter.id, "leave", action.type === "search" ? action.mode : undefined)!.hours}時間・消費なしです。</p>` : "";
+  const costs = Object.entries(assessment.costs).map(([key, amount]) => `${STAT_NAMES[key as Stat]} −${amount}`);
   const supplies = Object.entries(assessment.supplies).map(([key, amount]) => `${ITEM_NAMES[key as Item]} ${amount}個${action.type === "drop" ? "をバックパックから移す" : "を消費"}`);
   const groundRewards = Object.entries(assessment.groundRewards).map(([key, amount]) => `${ITEM_NAMES[key as Item]} +${amount}個`);
   const rewards = Object.entries(assessment.rewards).map(([key, amount]) => `${ITEM_NAMES[key as Item]} +${amount}個`);
-  const recovery = Object.entries(assessment.recovery).map(([key, amount]) => `${statNames[key as Stat]} +${amount}（実回復 +${Math.min(amount!, 100 - state[key as Stat])}）`);
+  const recovery = Object.entries(assessment.recovery).map(([key, amount]) => `${STAT_NAMES[key as Stat]} +${amount}（実回復 +${Math.min(amount!, STAT_MAX - state[key as Stat])}）`);
   const capacity = assessment.loadChange === 0n ? [] : [`容量 ${assessment.loadChange > 0n ? "+" : "−"}${assessment.loadChange < 0n ? -assessment.loadChange : assessment.loadChange}${assessment.loadAfter >= 0n ? `（${assessment.load} → ${assessment.loadAfter} / ${CAPACITY}）` : ""}`];
   const woundEffect = assessment.woundEnergyCost > 0 ? `<p class="action-effect">軽い負傷による気力 −${assessment.woundEnergyCost}（1時間ごとに −${WOUND_ENERGY_PER_HOUR}、上の費用に含む）</p>` : "";
   const treatment = assessment.treatsWound ? `<p class="action-effect">軽い負傷を治療${state.wound === "minor" ? "（軽い負傷 → 負傷なし）" : "（現在は負傷なし）"}。体力の実回復が0でも治療できます。</p>` : action.type === "rest" ? '<p class="action-effect">避難所以外の休息では、軽い負傷は治りません。</p>' : "";
   const injury = assessment.injury ? `<p class="action-effect">${action.type === "search" ? "探索による負傷" : "負傷の危険"}：${assessment.injury.oneIn}分の1で体力 −${assessment.injury.damage}・軽い負傷（重複しません）。新たな負傷の追加消費は次の移動・探索からです。</p>` : action.type === "search" ? '<p class="action-effect">探索による負傷：0（なし）</p>' : "";
   const costText = [ `${assessment.hours}時間`, ...supplies, ...costs, ...capacity ].join(" / ");
-  const effects = `${woundEffect}${rewards.length ? `<p class="action-effect">バックパックへ：${rewards.join(" / ")}</p>` : ""}${groundRewards.length ? `<p class="action-effect">${action.type === "drop" ? "地点に置く" : "発見→地点に残る"}：${groundRewards.join(" / ")}</p>` : ""}${injury}${searchHint}${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限100まで回復してから消費</p>` : ""}${treatment}`;
+  const effects = `${woundEffect}${rewards.length ? `<p class="action-effect">バックパックへ：${rewards.join(" / ")}</p>` : ""}${groundRewards.length ? `<p class="action-effect">${action.type === "drop" ? "地点に置く" : "発見→地点に残る"}：${groundRewards.join(" / ")}</p>` : ""}${injury}${searchHint}${recovery.length ? `<p class="action-effect">${recovery.join(" / ")}<br>上限${STAT_MAX}まで回復してから消費</p>` : ""}${treatment}`;
   const reasons = assessment.reasons.map(reason => `<p class="action-reason">${escape(reason)}</p>`).join("");
   const risks = assessment.risks.map(risk => `<p class="action-risk">${escape(risk)}</p>`).join("");
   return {
@@ -154,20 +155,21 @@ function location(): string {
     </div></section>`;
 }
 function inventory(): string {
+  const mission = missionDetails(state);
   return `<section class="inventory panel" aria-labelledby="inventory-title"><div class="section-heading"><h2 id="inventory-title" tabindex="-1">${icon("pack")}バックパック</h2><span data-testid="capacity">容量 ${inventoryLoad(state.inventory)} / ${CAPACITY}</span></div><div data-region="capacity-warning">${inventoryLoad(state.inventory) > BigInt(CAPACITY) ? '<p class="action-risk" role="status">容量を超えています。所持品はすべて保持しています。物資を使うか地点に置いて空きを作るまで、拾うことはできません。探索で見つけた物は地点に残ります。</p>' : ""}</div>
     <div class="inventory-grid">${ITEM_IDS.map(item => {
       const info = guidance({ type: "use", item }, `guide-use-${item}`);
       const drop = guidance({ type: "drop", item, quantity: 1 }, `guide-drop-${item}`);
-      return `<div class="item ${state.inventory[item] === 0 ? "empty" : ""}"><div class="item-icon">${icon(ITEMS[item].icon)}</div><div class="item-copy"><h3 tabindex="-1">${ITEM_NAMES[item]} <b data-testid="item-${item}">×${state.inventory[item]}</b></h3><span>容量 ${ITEMS[item].capacity} / 個 · ${item === "scrap" ? missionDetails(state).requiresRelay ? "中継所の修理に4個か6個、通信塔の送信に4個" : "通信塔の修理・送信に3個使用" : ITEMS[item].description}</span></div>${!ITEMS[item].usable ? `<span class="material-tag">部品</span>` : `<button class="use-button" data-item="${item}" data-focus="use-${item}" aria-label="${ITEM_NAMES[item]}を使う" ${info.disabled}>使う</button>${info.details}`}<div class="item-drop"><button class="use-button" data-action="drop" data-item="${item}" data-quantity="1" data-focus="drop-${item}" aria-label="${ITEM_NAMES[item]}をここに1個置く" ${drop.disabled}>ここに1個置く</button>${drop.details}</div></div>`;
+      return `<div class="item ${state.inventory[item] === 0 ? "empty" : ""}"><div class="item-icon">${icon(ITEMS[item].icon)}</div><div class="item-copy"><h3 tabindex="-1">${ITEM_NAMES[item]} <b data-testid="item-${item}">×${state.inventory[item]}</b></h3><span>容量 ${ITEMS[item].capacity} / 個 · ${item === "scrap" ? mission.requiresRelay ? `中継所の修理に${mission.sites.map(site => `${site.scrap}個`).join("か")}、通信塔の送信に${mission.signal.scrap}個` : `通信塔の修理・送信に${mission.signal.scrap}個使用` : ITEMS[item].description}</span></div>${!ITEMS[item].usable ? `<span class="material-tag">部品</span>` : `<button class="use-button" data-item="${item}" data-focus="use-${item}" aria-label="${ITEM_NAMES[item]}を使う" ${info.disabled}>使う</button>${info.details}`}<div class="item-drop"><button class="use-button" data-action="drop" data-item="${item}" data-quantity="1" data-focus="drop-${item}" aria-label="${ITEM_NAMES[item]}をここに1個置く" ${drop.disabled}>ここに1個置く</button>${drop.details}</div></div>`;
     }).join("")}</div>
-    <p class="inventory-note">容量24まで持ち運べます。地点に残した物から必要な分だけ拾えます。拾う・1個置くは0時間で、置いた物は現在地に残ります。物資は上限100まで回復してから、使用に伴う満腹度・水分を消費します。</p></section>`;
+    <p class="inventory-note">容量${CAPACITY}まで持ち運べます。地点に残した物から必要な分だけ拾えます。拾う・1個置くは${ACTION_RULES.transfer.hours}時間で、置いた物は現在地に残ります。物資は上限${STAT_MAX}まで回復してから、使用に伴う満腹度・水分を消費します。</p></section>`;
 }
 
 function ground(): string {
   const load = inventoryLoad(state.inventory);
   const room = BigInt(CAPACITY) > load ? BigInt(CAPACITY) - load : 0n;
   const counts = state.ground[state.position] ?? {};
-  return `<section class="ground panel" aria-labelledby="ground-title"><div class="section-heading"><h2 id="ground-title" tabindex="-1">地点に残した物</h2><span>現在地 ${coordinates(state.position)}</span></div><p class="ground-note">発見した物・置いた物はこの地点に残ります。必要な分だけ拾えます（0時間）。そのまま移動しても、再訪すれば拾えます。</p><p class="ground-empty" ${ITEM_IDS.some(item => (counts[item] ?? 0) > 0) ? "hidden" : ""}>この地点に残した物はありません。</p><div class="ground-grid">${ITEM_IDS.map(item => {
+  return `<section class="ground panel" aria-labelledby="ground-title"><div class="section-heading"><h2 id="ground-title" tabindex="-1">地点に残した物</h2><span>現在地 ${coordinates(state.position)}</span></div><p class="ground-note">発見した物・置いた物はこの地点に残ります。必要な分だけ拾えます（${ACTION_RULES.transfer.hours}時間）。そのまま移動しても、再訪すれば拾えます。</p><p class="ground-empty" ${ITEM_IDS.some(item => (counts[item] ?? 0) > 0) ? "hidden" : ""}>この地点に残した物はありません。</p><div class="ground-grid">${ITEM_IDS.map(item => {
     const count = counts[item] ?? 0;
     const fit = room / BigInt(ITEMS[item].capacity);
     const quantity = Number(fit < BigInt(count) ? fit : BigInt(count));

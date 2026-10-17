@@ -1,4 +1,4 @@
-import { newLegacyGame, withoutMission } from "./legacy.fixture";
+import { newLegacyGame, withoutMission } from "../../test-support/fixtures";
 import { describe, expect, it } from "vitest";
 import { act, newGame } from "./engine";
 import { actionTerms, assessAction } from "./actions";
@@ -6,7 +6,7 @@ import { CAPACITY, ITEMS, ITEM_IDS, inventoryLoad } from "./items";
 import { neighbors, TILES } from "./model";
 import type { Action, GameState, Terrain } from "./model";
 import { decodeSave, deserialize } from "./save";
-import { legacyInventory } from "../../tests/fixtures";
+import { legacyInventory } from "../../test-support/fixtures";
 
 function at(terrain: Terrain = "ruins"): GameState {
   const state = newLegacyGame();

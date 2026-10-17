@@ -1,7 +1,7 @@
-import { legacyInventory } from "../../tests/fixtures";
+import { legacyInventory } from "../../test-support/fixtures";
 import { describe, expect, it } from "vitest";
 import { act } from "./engine";
-import { newLegacyGame, withoutMission } from "./legacy.fixture";
+import { newLegacyGame, withoutMission } from "../../test-support/fixtures";
 import { neighbors } from "./model";
 import { deserialize } from "./save";
 

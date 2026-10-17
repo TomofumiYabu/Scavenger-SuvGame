@@ -1,7 +1,7 @@
-import { legacyInventory } from "../../tests/fixtures";
+import { legacyInventory } from "../../test-support/fixtures";
 import { describe, expect, it } from "vitest";
 import { act } from "./engine";
-import { newLegacyGame, withoutMission } from "./legacy.fixture";
+import { newLegacyGame, withoutMission } from "../../test-support/fixtures";
 import { ARCHIVE_PREFIX, BACKUP_KEY, SaveStore } from "./storage";
 import { LEGACY_SAVE_KEY, SAVE_KEY } from "./model";
 import type { StorageAccess } from "./storage";

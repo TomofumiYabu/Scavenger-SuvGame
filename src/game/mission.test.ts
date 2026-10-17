@@ -1,7 +1,7 @@
 import { westRun, eastRun } from "./balance.fixture";
 import { missionDetails, RELAY_SITES } from "./mission";
 import { buildRecapReport } from "./recap";
-import { newLegacyGame } from "./legacy.fixture";
+import { newLegacyGame } from "../../test-support/fixtures";
 import { describe, expect, it } from "vitest";
 import { act, newGame } from "./engine";
 import { assessAction } from "./actions";

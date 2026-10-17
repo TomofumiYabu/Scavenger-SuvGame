@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { actionTerms, assessAction } from "./actions";
 import { act } from "./engine";
-import { newLegacyGame } from "./legacy.fixture";
+import { newLegacyGame } from "../../test-support/fixtures";
 import { EVENTS, eventChoice } from "./events";
 import { ITEMS, ITEM_IDS } from "./items";
 import { neighbors, START, TILES, TOWER } from "./model";

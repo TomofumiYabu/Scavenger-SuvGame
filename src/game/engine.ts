@@ -10,6 +10,9 @@ import {
   tileAt,
 } from "./model";
 import type { Action, GameState, Item, LogKind } from "./model";
+import { STAT_MAX, STAT_NAMES } from "./items";
+import type { Stat } from "./items";
+import { WOUND_ENERGY_PER_HOUR } from "./wounds";
 import { recordRecap } from "./recap";
 
 function note(state: GameState, text: string, kind: LogKind = "info"): void {
@@ -83,7 +86,7 @@ export function act(previous: GameState, action: Action): GameState {
       }
       note(state, `${action.mode === "careful" ? "慎重に探し、" : ""}${descriptions.join("、")}を見つけ、地面にまとめた。拾う物を選べる。`, "good");
       if (injuryDamage) {
-        note(state, "崩れた足場で軽い負傷を負った。体力 −10。移動・探索の気力消費が1時間ごとに +2（重複なし）。", "danger");
+        note(state, `崩れた足場で軽い負傷を負った。体力 −${injuryDamage}。移動・探索の気力消費が1時間ごとに +${WOUND_ENERGY_PER_HOUR}（重複なし）。`, "danger");
       }
       break;
     }
@@ -103,16 +106,15 @@ export function act(previous: GameState, action: Action): GameState {
       note(
         state,
         sheltered
-          ? "避難所でひと休み。気力 +35、体力 +8。"
-          : "周囲に気を配りながら休んだ。気力 +35。",
+          ? `避難所でひと休み。気力 +${terms.recovery.energy}、体力 +${terms.recovery.health}。`
+          : `周囲に気を配りながら休んだ。気力 +${terms.recovery.energy}。`,
         "good",
       );
       break;
     }
     case "use": {
-      const labels = { health: "体力", hunger: "満腹度", thirst: "水分", energy: "気力" };
-      const recovery = Object.entries(terms.recovery).map(([key, amount]) => `${labels[key as keyof typeof labels]} +${Math.min(amount, 100 - previous[key as keyof typeof labels])}`);
-      note(state, `${ITEM_NAMES[action.item]}を使った。${recovery.join("、")}（上限100）。1時間、満腹度 −1、水分 −2。`, "good");
+      const recovery = Object.entries(terms.recovery).map(([key, amount]) => `${STAT_NAMES[key as Stat]} +${Math.min(amount, STAT_MAX - previous[key as Stat])}`);
+      note(state, `${ITEM_NAMES[action.item]}を使った。${recovery.join("、")}（上限${STAT_MAX}）。${terms.hours}時間、満腹度 −${terms.costs.hunger}、水分 −${terms.costs.thirst}。`, "good");
       break;
     }
     case "choose": {
@@ -121,12 +123,11 @@ export function act(previous: GameState, action: Action): GameState {
       const choice = eventChoice(action.event, action.choice, previous.pendingEvent?.searchMode)!;
       note(state, choice.outcome, choice.id === "leave" ? "info" : "good");
       if (action.event !== "collapsed-cache" && terms.hours > 0) {
-        const names = { health: "体力", hunger: "満腹度", thirst: "水分", energy: "気力" };
-        const recovery = Object.entries(terms.recovery).map(([key, amount]) => `${names[key as keyof typeof names]} +${Math.min(amount, 100 - previous[key as keyof typeof names])}（上限100）`);
-        const costs = Object.entries(terms.costs).map(([key, amount]) => `${names[key as keyof typeof names]} −${amount}`);
+        const recovery = Object.entries(terms.recovery).map(([key, amount]) => `${STAT_NAMES[key as Stat]} +${Math.min(amount, STAT_MAX - previous[key as Stat])}（上限${STAT_MAX}）`);
+        const costs = Object.entries(terms.costs).map(([key, amount]) => `${STAT_NAMES[key as Stat]} −${amount}`);
         note(state, `${terms.hours}時間。${[...recovery, ...costs].join("、")}。`);
       }
-      if (injuryDamage) note(state, "棚が崩れ、飛び散った破片で軽い負傷を負った。体力 −10。移動・探索の気力消費が1時間ごとに +2（重複なし）。", "danger");
+      if (injuryDamage) note(state, `棚が崩れ、飛び散った破片で軽い負傷を負った。体力 −${injuryDamage}。移動・探索の気力消費が1時間ごとに +${WOUND_ENERGY_PER_HOUR}（重複なし）。`, "danger");
       break;
     }
     case "repair": {

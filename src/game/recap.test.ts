@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { act } from "./engine";
-import { newLegacyGame } from "./legacy.fixture";
+import { newLegacyGame } from "../../test-support/fixtures";
 import { actionTerms, assessAction, projectStats } from "./actions";
 import { neighbors } from "./model";
 import type { Action, GameState } from "./model";

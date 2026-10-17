@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { assessAction } from "./actions";
 import { act } from "./engine";
-import { newLegacyGame } from "./legacy.fixture";
+import { newLegacyGame } from "../../test-support/fixtures";
 import { decodeSave, deserialize } from "./save";
 import type { Action, ChoiceId, EventId, GameState } from "./model";
 

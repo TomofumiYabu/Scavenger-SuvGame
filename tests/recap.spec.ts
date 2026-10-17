@@ -2,10 +2,10 @@ import { menuButton, mapTile, openMenu } from "./menus";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { act } from "../src/game/engine";
-import { legacyGame as newGame } from "./fixtures";
+import { legacyGame as newGame } from "../test-support/fixtures";
 import { neighbors, TOWER } from "../src/game/model";
 import type { Action, GameState } from "../src/game/model";
-import { withoutRecap } from "./fixtures";
+import { withoutRecap } from "../test-support/fixtures";
 
 const key = "afterlight.save.v2";
 function at(tile = 30): GameState {

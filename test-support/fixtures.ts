@@ -1,5 +1,25 @@
 import { newGame } from "../src/game/engine";
+import type { GameState } from "../src/game/model";
 import type { Item } from "../src/game/items";
+
+/** Prior expeditions retain their original starting resources and signal rules.
+ * Use only when testing historical mechanics, partial histories, or migration.
+ * New-expedition progression is exercised separately by mission.test.ts.
+ */
+export function newLegacyGame(): GameState {
+  const state = newGame();
+  return { ...state, mission: { ruleset: "legacy", repairedRelay: null }, hunger: 80, thirst: 80, energy: 85,
+    inventory: { ...state.inventory, water: 2, food: 2 } };
+}
+
+/** Actual content1–7 fixtures predate the mission field. */
+export function withoutMission<T extends { mission: unknown }>(state: T): Omit<T, "mission"> {
+  const { mission: _mission, ...old } = state;
+  return old;
+}
+
+export { newLegacyGame as legacyGame };
+
 /** Actual old catalogues have exactly the four original keys. */
 export function legacyInventory(inventory: Record<Item, number>) {
   const { water, food, bandage, scrap } = inventory;
@@ -24,15 +44,3 @@ export function withoutRecap<T extends { recap: unknown }>(state: T): Omit<T, "r
   return old;
 }
 
-/** Rule-specific regression fixtures retain the original expedition resources. */
-export function legacyGame() {
-  const state = newGame();
-  state.mission = { ruleset: "legacy", repairedRelay: null };
-  state.hunger = 80; state.thirst = 80; state.energy = 85;
-  state.inventory.water = 2; state.inventory.food = 2;
-  return state;
-}
-export function withoutMission<T extends { mission: unknown }>(state: T): Omit<T, "mission"> {
-  const { mission: _mission, ...old } = state;
-  return old;
-}

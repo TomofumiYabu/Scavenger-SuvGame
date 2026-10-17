@@ -10,6 +10,9 @@
   --gold: #e4b56e;
   --panel: #202b2b;
   --art: url('../public/art/terrain-atlas.webp');
+  /* Keep the dock, backdrop, drawer, and short-screen page clearance aligned. */
+  --dock-height: 72px;
+  --drawer-dock-gap: 14px;
 }
 
 * {
@@ -680,7 +683,7 @@ button:hover:not(:disabled) {
 }
 
 .command-dock {
-  height: 72px;
+  height: var(--dock-height);
   flex-shrink: 0;
   display: flex;
   align-items: stretch;
@@ -689,7 +692,7 @@ button:hover:not(:disabled) {
   background: #142022;
   border-top: 1px solid #797b585e;
   padding: 7px 25px;
-  z-index: 8;
+  z-index: 12;
 }
 
 .command-dock>button {
@@ -746,7 +749,7 @@ button:hover:not(:disabled) {
 
 .drawer-backdrop {
   position: absolute;
-  inset: 0;
+  inset: 0 0 var(--dock-height);
   background: #050e1478;
   backdrop-filter: blur(2px);
   z-index: 10;
@@ -756,7 +759,7 @@ button:hover:not(:disabled) {
   position: absolute;
   right: 18px;
   top: 14px;
-  bottom: 16px;
+  bottom: calc(var(--dock-height) + var(--drawer-dock-gap));
   width: 480px;
   max-width: calc(100% - 36px);
   z-index: 11;
@@ -1502,20 +1505,120 @@ dialog>form .button {
   flex: 1;
 }
 
-@media(min-width:1100px) {
+.relay-mark {
+  position: absolute;
+  top: 35%;
+  font-size: 18px;
+  color: #ffe4a5;
+}
+
+.tile.relay {
+  --hex-edge: #d0ad72;
+}
+
+.tile.relay .tile-label {
+  font-size: clamp(6px,1.5cqw,11px);
+}
+
+.relay-summary {
+  font-size: 12px!important;
+  color: var(--gold)!important;
+  margin-top: 12px;
+}
+
+.relay-routes {
+  display: grid;
+  gap: 10px;
+}
+
+.relay-route {
+  text-align: left;
+  background: #343e31;
+  border: 1px solid #a3925c88;
+  padding: 14px;
+  display: grid;
+  gap: 7px;
+}
+
+.relay-route strong {
+  font-size: 14px;
+  color: var(--gold);
+}
+
+.relay-route span {
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.relay-route b {
+  font-size: 12px;
+  color: #d9c798;
+}
+
+.step-number {
+  font: 20px ui-monospace,monospace;
+  color: var(--gold);
+}
+
+.mission-note,.legacy-label {
+  font-size: 12px!important;
+  color: var(--muted);
+  margin: 18px 0;
+}
+
+.objective-brief span {
+  line-height: 1.5;
+}
+
+/* Let the map use the available playfield height, including shorter laptops. */
+@media(min-width:801px) {
+  :root {
+    --dock-height: 64px;
+  }
+  .site-header {
+    height: 56px;
+  }
+  .status-strip {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .map-panel {
+    container-type: size;
+  }
   .map-grid {
-    margin-left: -100px;
+    width: min(calc(100cqw - 70px),calc((100cqh - 156px)*1.1809437));
+    margin-left: 0;
+  }
+  .map-wrap {
+    padding-top: 8px;
+    padding-bottom: 90px;
+  }
+  .map-hint,.map-legend {
+    flex-shrink: 0;
+    line-height: 1.3;
+  }
+  .map-hint {
+    margin-bottom: 6px;
+  }
+  .map-legend {
+    margin-top: 8px;
   }
   .map-panel>.section-heading {
-    width: 290px;
+    width: 260px;
+    padding-top: 20px;
+  }
+  .tile-art {
+    filter: saturate(.8) brightness(.9);
+  }
+}
+
+@media(min-width:1100px) {
+  .map-panel>.section-heading {
     bottom: 0;
     align-items: flex-start;
     flex-direction: column;
     justify-content: flex-start;
     gap: 22px;
-  }
-  .map-wrap {
-    padding-top: 30px;
   }
   .map-coordinate {
     font-size: 12px;
@@ -1592,6 +1695,10 @@ dialog>form .button {
 }
 
 @media(max-width:560px) {
+  :root {
+    --dock-height: 66px;
+    --drawer-dock-gap: 7px;
+  }
   #game {
     min-height: 440px;
   }
@@ -1667,7 +1774,7 @@ dialog>form .button {
     margin: 0;
     width: 100%;
     justify-content: flex-start;
-    font-size: 11px;
+    font-size: 10px;
     min-height: 26px;
   }
   .objective-brief .icon {
@@ -1676,8 +1783,8 @@ dialog>form .button {
   }
   .objective-brief small {
     display: inline;
-    margin-left: 10px;
-    font-size: 10px;
+    margin-left: 6px;
+    font-size: 9px;
   }
   .map-panel>.section-heading {
     padding: 15px 14px;
@@ -1755,7 +1862,6 @@ dialog>form .button {
     font-size: 8px;
   }
   .command-dock {
-    height: 66px;
     padding: 5px 7px;
     gap: 3px;
   }
@@ -1782,10 +1888,9 @@ dialog>form .button {
     top: auto;
     right: 7px;
     left: 7px;
-    bottom: 7px;
     max-width: none;
     width: auto;
-    max-height: min(76dvh,680px);
+    max-height: min(71dvh,640px);
     border-radius: 9px 9px 3px 3px;
   }
   .drawer-header {
@@ -1799,7 +1904,7 @@ dialog>form .button {
     font-size: 22px;
   }
   .drawer-scroll {
-    max-height: calc(76dvh - 60px);
+    max-height: calc(71dvh - 60px);
   }
   .location-art {
     height: 145px;
@@ -1846,6 +1951,9 @@ dialog>form .button {
   .notice .text-button {
     font-size: 10px;
   }
+  .relay-mark {
+    font-size: 12px;
+  }
   .recap-time small {
     display: block;
   }
@@ -1874,106 +1982,6 @@ dialog>form .button {
   }
 }
 
-.command-dock {
-  z-index: 12;
-}
-
-.command-drawer {
-  bottom: 86px;
-}
-
-.drawer-backdrop {
-  bottom: 72px;
-}
-
-.relay-mark {
-  position: absolute;
-  top: 35%;
-  font-size: 18px;
-  color: #ffe4a5;
-}
-
-.tile.relay {
-  --hex-edge: #d0ad72;
-}
-
-.tile.relay .tile-label {
-  font-size: clamp(6px,1.5cqw,11px);
-}
-
-.relay-summary {
-  font-size: 12px!important;
-  color: var(--gold)!important;
-  margin-top: 12px;
-}
-
-.relay-routes {
-  display: grid;
-  gap: 10px;
-}
-
-.relay-route {
-  text-align: left;
-  background: #343e31;
-  border: 1px solid #a3925c88;
-  padding: 14px;
-  display: grid;
-  gap: 7px;
-}
-
-.relay-route strong {
-  font-size: 14px;
-  color: var(--gold);
-}
-
-.relay-route span {
-  font-size: 12px;
-  line-height: 1.8;
-}
-
-.relay-route b {
-  font-size: 12px;
-  color: #d9c798;
-}
-
-.step-number {
-  font: 20px ui-monospace,monospace;
-  color: var(--gold);
-}
-
-.mission-note,.legacy-label {
-  font-size: 12px!important;
-  color: var(--muted);
-  margin: 18px 0;
-}
-
-.objective-brief span {
-  line-height: 1.5;
-}
-
-@media(max-width:560px) {
-  .command-drawer {
-    bottom: 73px;
-    max-height: min(71dvh,640px);
-  }
-  .drawer-backdrop {
-    bottom: 66px;
-  }
-  .drawer-scroll {
-    max-height: calc(71dvh - 60px);
-  }
-  .objective-brief {
-    font-size: 10px;
-  }
-  .objective-brief small {
-    font-size: 9px;
-    margin-left: 6px;
-  }
-  .relay-mark {
-    font-size: 12px;
-  }
-}
-
 @media(max-width:360px) {
   .stat-heading .icon {
     display: none;
@@ -1986,63 +1994,19 @@ dialog>form .button {
   }
 }
 
-/* Let the map use the available playfield height, including shorter laptops. */
-@media(min-width:801px) {
-  .site-header {
-    height: 56px;
-  }
-  .status-strip {
-    padding-top: 8px;
-    padding-bottom: 8px;
-  }
-  .command-dock {
-    height: 64px;
-  }
-  .map-panel {
-    container-type: size;
-  }
-  .map-grid {
-    width: min(calc(100cqw - 70px),calc((100cqh - 156px)*1.1809437));
-    margin-left: 0;
-  }
-  .map-wrap {
-    padding-top: 8px;
-    padding-bottom: 90px;
-  }
-  .map-hint,.map-legend {
-    flex-shrink: 0;
-    line-height: 1.3;
-  }
-  .map-hint {
-    margin-bottom: 6px;
-  }
-  .map-legend {
-    margin-top: 8px;
-  }
-  .map-panel>.section-heading {
-    width: 260px;
-    padding-top: 20px;
-  }
-  .drawer-backdrop {
-    bottom: 64px;
-  }
-  .command-drawer {
-    bottom: 78px;
-  }
-  .tile-art {
-    filter: saturate(.8) brightness(.9);
-  }
-}
-
 /* Short screens keep readable map cells and scroll the field above the dock. */
 @media(max-height:650px) {
+  :root {
+    --dock-height: 64px;
+    --drawer-dock-gap: 8px;
+  }
   #game {
     height: auto;
     min-height: 100dvh;
     overflow: visible;
   }
   .command-screen {
-    padding-bottom: 72px;
+    padding-bottom: calc(var(--dock-height) + var(--drawer-dock-gap));
   }
   .map-panel {
     flex: none;
@@ -2061,16 +2025,13 @@ dialog>form .button {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 64px;
   }
   .drawer-backdrop {
     position: fixed;
-    bottom: 64px;
   }
   .command-drawer {
     position: fixed;
     top: 8px;
-    bottom: 72px;
     max-height: none;
   }
   .drawer-scroll {

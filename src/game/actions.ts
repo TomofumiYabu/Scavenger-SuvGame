@@ -1,5 +1,5 @@
 import { missionDetails, relayAt } from "./mission";
-import { ITEMS, isItem, CAPACITY, inventoryLoad, capacityChange } from "./items";
+import { ITEMS, isItem, CAPACITY, STAT_MAX, inventoryLoad, capacityChange } from "./items";
 import { eventChoice, eventById } from "./events";
 import { ITEM_NAMES, MAX_TURNS, TOWER, neighbors, tileAt } from "./model";
 import type { Action, GameState, Item, SearchMode, Terrain } from "./model";
@@ -8,7 +8,7 @@ import type { RecapDamage, FatalCause } from "./recap";
 
 import type { Stat } from "./items";
 export type { Stat } from "./items";
-export const cap = (value: number) => Math.min(100, Math.max(0, value));
+export const cap = (value: number) => Math.min(STAT_MAX, Math.max(0, value));
 export const STARVATION_DAMAGE = 12;
 export const RUINS_DAMAGE = 10;
 export interface ActionTerms {
@@ -24,6 +24,15 @@ export interface ActionTerms {
   /** Additional energy already included in costs.energy. Only movement/search. */
   woundEnergyCost: number;
 }
+
+export const ACTION_RULES = {
+  move: { hours: 1, costs: { energy: 6, hunger: 3, thirst: 4 } },
+  rest: { hours: 1, costs: { hunger: 6, thirst: 8 }, recovery: { energy: 35 }, shelterRecovery: { health: 8 } },
+  use: { hours: 1, costs: { hunger: 1, thirst: 2 } },
+  transfer: { hours: 0 },
+} as const;
+export const CAREFUL_BONUS_QUANTITY = 1;
+export const CAREFUL_EXTRA_QUANTITY = 1;
 
 export const SEARCH_METHODS = {
   quick: { label: "手早く探す", hours: 1, costs: { energy: 10, hunger: 5, thirst: 6 } },
@@ -43,7 +52,7 @@ const CAREFUL_EXTRA: Record<Terrain, Item> = { ruins: "snack", street: "coffee",
 export function actionTerms(state: GameState, action: Action): ActionTerms {
   const terms: ActionTerms = { hours: 1, costs: { hunger: 3, thirst: 4 }, recovery: {}, supplies: {}, rewards: {}, groundRewards: {}, injury: null, advanceRng: false, treatsWound: false, woundEnergyCost: 0 };
   switch (action.type) {
-    case "move": terms.costs.energy = 6; break;
+    case "move": terms.hours = ACTION_RULES.move.hours; terms.costs = { ...ACTION_RULES.move.costs }; break;
     case "search": {
       const mode = action.mode === "careful" ? "careful" : "quick";
       const method = SEARCH_METHODS[mode];
@@ -51,13 +60,13 @@ export function actionTerms(state: GameState, action: Action): ActionTerms {
       terms.hours = method.hours;
       terms.costs = { ...method.costs };
       terms.groundRewards = { ...SEARCH_LOOT[terrain] };
-      if (mode === "careful") { const item = CAREFUL_BONUS[terrain]; terms.groundRewards[item] = (terms.groundRewards[item] ?? 0) + 1; terms.groundRewards[CAREFUL_EXTRA[terrain]] = 1; }
+      if (mode === "careful") { const item = CAREFUL_BONUS[terrain]; terms.groundRewards[item] = (terms.groundRewards[item] ?? 0) + CAREFUL_BONUS_QUANTITY; terms.groundRewards[CAREFUL_EXTRA[terrain]] = CAREFUL_EXTRA_QUANTITY; }
       else { terms.advanceRng = true; if (terrain === "ruins") terms.injury = { oneIn: 3, damage: RUINS_DAMAGE }; }
       break;
     }
     case "pickup":
     case "drop":
-      terms.hours = 0;
+      terms.hours = ACTION_RULES.transfer.hours;
       terms.costs = {};
       // Runtime DOM input is untrusted: never pass an invalid quantity into BigInt.
       if (isItem(action.item) && Number.isSafeInteger(action.quantity) && action.quantity > 0) {
@@ -66,12 +75,14 @@ export function actionTerms(state: GameState, action: Action): ActionTerms {
       }
       break;
     case "rest":
-      terms.costs = { hunger: 6, thirst: 8 };
+      terms.hours = ACTION_RULES.rest.hours;
+      terms.costs = { ...ACTION_RULES.rest.costs };
       terms.treatsWound = tileAt(state.position).terrain === "shelter";
-      terms.recovery = { energy: 35, ...(tileAt(state.position).terrain === "shelter" ? { health: 8 } : {}) };
+      terms.recovery = { ...ACTION_RULES.rest.recovery, ...(terms.treatsWound ? ACTION_RULES.rest.shelterRecovery : {}) };
       break;
     case "use":
-      terms.costs = { hunger: 1, thirst: 2 };
+      terms.hours = ACTION_RULES.use.hours;
+      terms.costs = { ...ACTION_RULES.use.costs };
       if (!isItem(action.item)) break;
       terms.supplies[action.item] = 1;
       terms.recovery = { ...ITEMS[action.item].recovery };
@@ -185,7 +196,7 @@ export function assessAction(state: GameState, action: Action): ActionAssessment
     if (injury) risks.push(`崩れた足場で負傷する可能性（${injury.oneIn}分の1で体力 −${injury.damage}・軽い負傷。移動・探索の気力消費が1時間ごとに +${WOUND_ENERGY_PER_HOUR}、重複なし）`);
     if (after.health === 0) risks.push(action.type === "signal" ? "この行動で体力が尽きます。送信しても脱出できません" : "この行動で体力が尽きます");
     else if (injury && after.health <= injury.damage) risks.push("負傷すると体力が尽きる可能性があります");
-    if (terms.hours > 0 && state.turn + terms.hours >= MAX_TURNS && after.health > 0) risks.push(action.type === "signal" ? "最後の1時間です。体力が残れば脱出できます" : `残り${MAX_TURNS - state.turn}時間です。この行動で救助の機会を失います`);
+    if (terms.hours > 0 && state.turn + terms.hours >= MAX_TURNS && after.health > 0) risks.push(action.type === "signal" ? `最後の${terms.hours}時間です。体力が残れば脱出できます` : `残り${MAX_TURNS - state.turn}時間です。この行動で救助の機会を失います`);
   }
   return { ...terms, load, loadChange, loadAfter, allowed: reasons.length === 0, reasons, risks, after };
 }

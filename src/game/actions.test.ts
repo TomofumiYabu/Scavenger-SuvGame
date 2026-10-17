@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { assessAction } from "./actions";
 import { act, canAct } from "./engine";
-import { newLegacyGame } from "./legacy.fixture";
+import { newLegacyGame } from "../../test-support/fixtures";
 import { START, TOWER, neighbors } from "./model";
 import type { Action, GameState } from "./model";
 

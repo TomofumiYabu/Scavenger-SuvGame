@@ -1,9 +1,9 @@
 import { menuButton, mapTile, openMenu } from "./menus";
-import { withoutWound, withoutRecap } from "./fixtures";
+import { withoutWound, withoutRecap } from "../test-support/fixtures";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { act } from "../src/game/engine";
-import { legacyGame as newGame } from "./fixtures";
+import { legacyGame as newGame } from "../test-support/fixtures";
 import { eventById, eventChoice } from "../src/game/events";
 import { neighbors } from "../src/game/model";
 import type { ChoiceId, GameState, SearchMode } from "../src/game/model";

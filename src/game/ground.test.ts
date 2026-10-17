@@ -1,4 +1,4 @@
-import { newLegacyGame, withoutMission } from "./legacy.fixture";
+import { newLegacyGame, withoutMission } from "../../test-support/fixtures";
 import { describe, expect, it } from "vitest";
 import { act, newGame } from "./engine";
 import { actionTerms, assessAction } from "./actions";
@@ -6,7 +6,7 @@ import { ITEM_IDS, inventoryLoad } from "./items";
 import { decodeSave, deserialize } from "./save";
 import { neighbors } from "./model";
 import type { Action, GameState } from "./model";
-import { legacyInventory } from "../../tests/fixtures";
+import { legacyInventory } from "../../test-support/fixtures";
 
 function emptyBag(): GameState {
   const state = newGame();

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { legacyInventory, withoutWound } from "../../tests/fixtures";
+import { legacyInventory, withoutWound } from "../../test-support/fixtures";
 import { act } from "./engine";
-import { newLegacyGame, withoutMission } from "./legacy.fixture";
+import { newLegacyGame, withoutMission } from "../../test-support/fixtures";
 import { EVENTS } from "./events";
 import { LEGACY_SAVE_KEY, SAVE_KEY, neighbors } from "./model";
 import { decodeSave, deserialize } from "./save";

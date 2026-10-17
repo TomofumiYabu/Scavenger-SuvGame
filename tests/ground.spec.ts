@@ -2,10 +2,10 @@ import { menuButton, openMenu, mapTile } from "./menus";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { act } from "../src/game/engine";
-import { legacyGame as newGame } from "./fixtures";
+import { legacyGame as newGame } from "../test-support/fixtures";
 import { neighbors } from "../src/game/model";
 import type { GameState } from "../src/game/model";
-import { withoutGround, withoutWound, withoutRecap } from "./fixtures";
+import { withoutGround, withoutWound, withoutRecap } from "../test-support/fixtures";
 
 const key = "afterlight.save.v2";
 async function seed(page: Page, state: GameState | string) {

@@ -1,4 +1,4 @@
-import { newLegacyGame } from "./legacy.fixture";
+import { newLegacyGame } from "../../test-support/fixtures";
 import { describe, expect, it } from "vitest";
 import { act, newGame } from "./engine";
 import { assessAction } from "./actions";

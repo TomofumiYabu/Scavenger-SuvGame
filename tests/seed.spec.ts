@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { act, newGame } from "../src/game/engine";
-import { newLegacyGame, withoutMission } from "../src/game/legacy.fixture";
+import { newLegacyGame, withoutMission } from "../test-support/fixtures";
 import { SAVE_KEY } from "../src/game/model";
 import { mapTile, menuButton, openMenu } from "./menus";
 

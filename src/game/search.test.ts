@@ -1,5 +1,5 @@
-import { newLegacyGame, withoutMission } from "./legacy.fixture";
-import { legacyInventory } from "../../tests/fixtures";
+import { newLegacyGame, withoutMission } from "../../test-support/fixtures";
+import { legacyInventory } from "../../test-support/fixtures";
 import { describe, expect, it } from "vitest";
 import { assessAction } from "./actions";
 import { act, newGame } from "./engine";

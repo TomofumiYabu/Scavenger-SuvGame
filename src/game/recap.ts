@@ -1,5 +1,5 @@
 import { EXPEDITION_START, relayAt, missionDetails } from "./mission";
-import { actionTerms, isSearchMode, projectStats, SEARCH_METHODS } from "./actions";
+import { actionTerms, isSearchMode, projectStats, SEARCH_METHODS, ACTION_RULES, STARVATION_DAMAGE } from "./actions";
 import { eventById, eventChoice } from "./events";
 import { ITEMS, ITEM_NAMES, isItem } from "./items";
 import { coordinates, MAX_TURNS, START, neighbors, tileAt } from "./model";
@@ -68,9 +68,9 @@ function entryDetails(entry: RecapEntry): string[] {
 function injuryHint(entry: RecapEntry): string {
   const treatment = "軽い負傷は包帯・救急キット・避難所の休息などで治せる。";
   if (entry.action.type === "choose" && entry.action.event === "collapsed-cache" && entry.action.choice === "deep") {
-    return `崩れた備蓄庫では「入口の箱を調べる」なら負傷抽選がなく、「何も取らず立ち去る」なら0時間で離れられる。${treatment}`;
+    return `崩れた備蓄庫では「入口の箱を調べる」なら負傷抽選がなく、「何も取らず立ち去る」なら${eventChoice("collapsed-cache", "leave")!.hours}時間で離れられる。${treatment}`;
   }
-  return `廃墟を慎重に探すと探索による負傷を避けられるが、2時間かかる。${treatment}`;
+  return `廃墟を慎重に探すと探索による負傷を避けられるが、${SEARCH_METHODS.careful.hours}時間かかる。${treatment}`;
 }
 /** Report only verified structured facts. Logs and final zero resources never establish a cause. */
 export function buildRecapReport(state: GameState): RecapReport {
@@ -79,7 +79,7 @@ export function buildRecapReport(state: GameState): RecapReport {
   const partial = state.recap === null || state.recap.startedAt > 0;
   const available = entries.length > 0;
   let reason = state.status === "won" ? "救難信号を送り、街からの脱出に成功した。"
-    : state.status === "lost" ? "48時間が経過し、救助の機会を失った。"
+    : state.status === "lost" ? `${MAX_TURNS}時間が経過し、救助の機会を失った。`
       : state.status === "dead" ? "体力が尽き、探索を終えた。詳細な原因の記録はありません。" : "探索は続いている。";
   if (state.status === "dead" && last?.fatalCause) reason = `${damageNames[last.fatalCause]}による体力減少で、体力が尽きた。${last.action.type === "signal" ? "送信したが、脱出には至らなかった。" : ""}`;
   const groups = [
@@ -92,8 +92,8 @@ export function buildRecapReport(state: GameState): RecapReport {
   });
   const injury = last?.fatalCause === "injury" ? last : [...entries].reverse().find(entry => entry.damage.injury > 0);
   const hintBySource: Partial<Record<FatalCause | "deadline", string>> = {};
-  if (entries.some(entry => entry.damage.thirst > 0)) hintBySource.thirst = "水分が0になる行動では毎時体力が12減る。消耗する前に、飲料水や電解質飲料を使う時間を確保しよう。";
-  if (entries.some(entry => entry.damage.hunger > 0)) hintBySource.hunger = "満腹度が0になる行動では毎時体力が12減る。保存食や栄養バーを使う1時間も見込んで補給しよう。";
+  if (entries.some(entry => entry.damage.thirst > 0)) hintBySource.thirst = `水分が0になる行動では毎時体力が${STARVATION_DAMAGE}減る。消耗する前に、飲料水や電解質飲料を使う時間を確保しよう。`;
+  if (entries.some(entry => entry.damage.hunger > 0)) hintBySource.hunger = `満腹度が0になる行動では毎時体力が${STARVATION_DAMAGE}減る。保存食や栄養バーを使う${ACTION_RULES.use.hours}時間も見込んで補給しよう。`;
   if (injury) hintBySource.injury = injuryHint(injury);
   if (state.status === "lost") hintBySource.deadline = `通信塔での送信にも${missionDetails(state).signal.hours}時間と手持ちのスクラップ${missionDetails(state).signal.scrap}個が必要。${state.mission.ruleset === "relay-v1" ? "先にA2かG6の中継所を修理し、" : ""}探索・移動・補給と合わせて時間を残そう。`;
   const priority: (FatalCause | "deadline")[] = state.status === "dead" && last?.fatalCause ? [last.fatalCause] : state.status === "lost" ? ["deadline"] : [];

@@ -1,7 +1,7 @@
 import { menuButton, mapTile, openMenu } from "./menus";
-import { legacyInventory, withoutGround, withoutWound, withoutRecap } from "./fixtures";
+import { legacyInventory, withoutGround, withoutWound, withoutRecap } from "../test-support/fixtures";
 import { expect, test } from "@playwright/test";
-import { legacyGame as newGame } from "./fixtures";
+import { legacyGame as newGame } from "../test-support/fixtures";
 import type { Page } from "@playwright/test";
 
 async function seedLegacy(page: Page): Promise<void> {
