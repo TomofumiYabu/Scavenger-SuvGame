@@ -1,5 +1,22 @@
 # 独立レビュー記録
 
+## 2026-10-18 — 現行コードのリファクタリング必要性
+
+- 対象: `ccf88d9`。全面改修や機能開発を止める緊急の整理は不要と判断。次に関連箇所を変更する前の局所整理を推奨する。
+- 判断者: root。Solの3担当がUI・ルール/保存・テストを独立レビューし、rootが根拠を照合、Lunaが記録を担当した。レビューはコード構造と保存互換性の変更リスクを調べたもので、現行プレイの不具合を示すものではない。
+
+| ID | 根拠 | 最小対応・時期 | 保護する確認 |
+| --- | --- | --- | --- |
+| RF1 | [src/game/recap.ts](../src/game/recap.ts) の171–178行相当では、記録済み行動を現在の `actionTerms` / `projectStats` で再計算する。費用や回復の定義を変えると、履歴由来の能力値が現行保存と合わず拒否されうる。隔離した `/tmp` 実験では移動の満腹度費用を3から4へ変えただけで、元の合法なcontent8保存が新旧rulesetとも `valid` から `corrupt` になった。content7形状も `migrated` から `corrupt` になったが、これは現在の状態を旧形状にした合成例で、実在した旧保存の再現ではない。 | 次に費用・回復を変える前に、履歴を評価するルール選択境界で旧定義を保持する。汎用ルールエンジンは不要。将来の費用変更では互換検証または版付き移行を併せて決める。今回の評価では保存版を変更しない。 | content7/8の実データ形状を使った保存往復。`recap` 履歴の再計算と保存値の一致。 |
+| RF2 | [src/ui/templates.ts](../src/ui/templates.ts) の30・161・163行相当には目標費用、容量24等の固定説明があり、実行は `missionDetails` / `assessAction` 由来。[src/game/engine.ts](../src/game/engine.ts) の行動ログや `src/game/recap.ts` のヒントにも数値説明がある。 | 次の数値バランス変更時に、説明中の数値部分だけを共通terms/定数由来にする。過去PROGRESSにスクラップの旧用途説明を修正した実績がある。 | 表示される費用・回復と実際の実行値の一致。旧ruleset向け説明。 |
+| RF3 | [src/style.css](../src/style.css) 1505行付近のmin-width 1100px用 `margin-left: -100px` は、801px以上の後段で `margin-left: 0` に上書きされる。同じく `padding-top: 30px` は後段で8px。dock高とdrawer/backdropの下端指定も682、1757、1877–1886、1954、1998–2030、2038–2077行付近に分散。 | 次のUI変更時に死んだ宣言を除き条件を整理し、dock高さなどをCSS変数にする。ファイル分割だけを目的にしない。 | 従来の幅320/390/1366px・高さ900pxと、667×375、844×390、390×600。加えて幅560/800px・高さ650px前後。 |
+| RF4 | [src/game/wound-save.test.ts](../src/game/wound-save.test.ts) と `recap-save.test.ts` の過去fixtureが `EVENTS` から解決済みIDを生成する一方、[src/game/save.ts](../src/game/save.ts) の28行はcontent5〜8に現行 `EVENTS` の全件を許可する。イベント追加時に過去版の想定も一緒に変わりうる。現在は一致し、現行バグではない。 | 次のイベント追加前に当時の6 IDを固定し、版ごとの許可範囲を確認する。 | content5–8のfixtureが当時のイベントIDを保ち、現行EVENTS増加でも過去データの検証結果が変わらないこと。 |
+| RF5 | [src/game/legacy.fixture.ts](../src/game/legacy.fixture.ts) と [tests/fixtures.ts](../tests/fixtures.ts) が旧開始資源・missionなし変換を重複保持し、複数テスト群が後者を参照する。 | 次のfixture変更時に、DOM/Playwright非依存のtest-supportへ小さく共通化する。歴史的期待値を現行 `newGame` から生成しない。 | 旧保存の固定期待値・移行結果と、通常ルールの新規開始テスト。 |
+
+維持する設計: 純粋な行動関数の入力不変・拒否時同参照、`actionTerms` と `assessAction` の共有、decodeとSaveStoreの分離、DOM部分更新後のfocus/data-focus/region/details保持、content7のliteral fixture、主要導線の実ブラウザ確認。React移行、汎用rules engine、全テスト共通基盤化、行数だけを理由とする分割は推奨しない。
+
+検証状況: 上記RF1の限定実験は `/tmp/afterlight-rules-compat-proof.mjs` とその出力で実施。現在のコードに対する `npm run check` は成功（単体433件・19ファイル、型検査、本番ビルド、Chromium E2E130件・約2.4分）。ログは `/tmp/afterlight-refactor-review-check.log`。この成功は現在の挙動の確認であり、将来の変更容易性を証明するものではない。今回リファクタリングは実施していない。
+
 ## 2026-10-18 — 新規探索・短画面UI・ヘルプ操作
 
 - 対象: 基準コミット `3177c56` と、それに基づくレビュー修正。実装後の全体検証結果を以下に追記する。
