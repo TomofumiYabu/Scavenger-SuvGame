@@ -25,7 +25,9 @@
 
 RF2では `ACTION_RULES`、慎重な探索の追加収穫値、item回復定義、`STAT_MAX` を表示説明に使い、ヘルプ・所持品・engineログ・recap助言の数値を共通化した。ゲームルールの数値は変更していない。送信直前の案内だけ、実際の2時間を表示するよう修正した。RF3では `--dock-height` / `--drawer-dock-gap` を追加し、CSS条件を集約して死んだ上書きを除去した。RF5では共有helperを `test-support/fixtures.ts` へ移し、26テストファイルはimport元だけを変更した。テスト本文と期待値は変更していない。
 
-独立Solレビューで要修正指摘なし。限定確認では、3 seed（0/1/2026）×2 ruleset×深さ3で40,176ケース（合法12,804、拒否27,372）を比較し、`actionTerms` と `act` の値、8種アイテム定義の一致を確認した。これは全状態を保証するものではない。CSSは30画面条件でメニュー開閉それぞれの変更前後computed style・要素境界が一致し、6スクリーンショットも一致。15件の新しい境界E2Eを追加。統合後の `npm run check` は単体455件（20ファイル）、型検査、本番build、Chromium E2E146件（2.8分）が成功。ログ: `/tmp/afterlight-refactor-check.log`。公開版は `1671e59` のままで、commit/pushと公開確認はこれから行う。
+独立Solレビューで要修正指摘なし。限定確認では、3 seed（0/1/2026）×2 ruleset×深さ3で40,176ケース（合法12,804、拒否27,372）を比較し、`actionTerms` と `act` の値、8種アイテム定義の一致を確認した。これは全状態を保証するものではない。CSSは30画面条件でメニュー開閉それぞれの変更前後computed style・要素境界が一致し、6スクリーンショットも一致。15件の新しい境界E2Eを追加。統合後の `npm run check` は単体455件（20ファイル）、型検査、本番build、Chromium E2E146件（2.8分）が成功。ログ: `/tmp/afterlight-refactor-check.log`。
+
+公開確認: `2a7377e` をプッシュし、[Actions 39080288931](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/39080288931)で検証とGitHub Pages公開が成功。公開全8ファイルがCloudの検証済みビルドと一致した。ブラウザ操作の検証はCloud/Actionsで実施し、公開先はTLS検証付きHTTP取得で成果物を照合した。
 
 ## 2026-10-18 — 新規探索・短画面UI・ヘルプ操作
 
