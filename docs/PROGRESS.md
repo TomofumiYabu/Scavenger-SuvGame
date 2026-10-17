@@ -2,15 +2,15 @@
 
 更新日: 2026-10-18（日本時間）
 
-## 独立レビュー対応（Cloud検証完了・公開確認待ち）
+## 独立レビュー対応（Cloud・Actions検証と公開確認完了）
 
-対象はレビュー基準版 `3177c56`。提案の判断理由・証拠・保留事項は [レビュー記録](REVIEWS.md) に記録した。R1-R3はAL-028として実装し、Cloud検証を完了した。GitHub Actions・Pagesの公開確認は未実施で、現行公開版は `c9d7170` のまま。慎重探索後の出来事選択と無料回収の費用は、試遊比較まで変更を保留した。
+対象はレビュー基準版 `3177c56`。提案の判断理由・証拠・保留事項は [レビュー記録](REVIEWS.md) に記録した。R1-R3はAL-028として実装し、Cloud検証を完了した。コミット `1671e59` を公開し、[Actions実行 39057135616](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/39057135616)と公開ファイルの一致を確認した。慎重探索後の出来事選択と無料回収の費用は、試遊比較まで変更を保留した。
 
 レビュー担当Solによる合法な2手分岐の保存往復20,162状態、SaveStoreのbackup / replace / reload確認はすべて成功した（終了時状態31）。これは確認したケースの結果で、全状態の保存安全性を保証するものではない。実装後の限定52 unit確認でも独立レビューの追加指摘なし。
 
 修正後の `npm run check` はexit 0: 単体433件（19ファイル）、型検査、本番build、Chromium E2E130件（約2.3分）。追加は単体14件、E2E7件。rootの固定シード2026攻略再実行もレビュー時と同じ29時間の結果で、確定行動ごとに保存valid。ブラウザでは新規seedで負傷するケース、再読込・閲覧・取消の非変更、確定リセット時の新seed、旧content7移行・backup復旧での乱数状態保持を確認した。詳細は [レビュー記録](REVIEWS.md) と [試遊記録](PLAYTEST.md) を参照。
 
-rootが短画面667×375・844×390・390×600、ヘルプ1366×768・390×600および従来の高さ900px・3幅を確認。マップセル44px以上、中央クリック、ドック常時表示、ドロワー内表示を確認した。GitHub Actions・公開URLの確認は未実施。人による再試遊・難易度・面白さの改善は未判定。前版 `c9d7170` の公開成功記録は前版の実績として維持する。
+rootが短画面667×375・844×390・390×600、ヘルプ1366×768・390×600および従来の高さ900px・3幅を確認。短画面の3条件ではセル幅44px以上、中央クリック、ドック常時表示、ドロワー内表示を確認した。公開Actionsも成功し、TLS検証付きHTTP取得でHTML・JS・CSS・画像・faviconの全8ファイルが検証済みビルドと一致した。人による再試遊・難易度・面白さの改善は未判定。前版 `c9d7170` の公開成功記録は前版の実績として維持する。
 
 ## 前版AL-025〜027の試遊対応と公開（2026-10-18）
 
@@ -139,12 +139,13 @@ Wiki調査用に `neoscavenger.fandom.com` を許可先へ追加済みで、ユ�
 
 ## GitHub と Pages 公開
 
-最新の公開: AL-025〜027の中継所ルート・マップ中心のクリックメニュー・独自画像をコミット `c9d7170` として `main` へプッシュ。[Actions実行 39053554100](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/39053554100) の一括検証・ビルド・Pages公開は成功。公開URLからTLS検証を有効にしたHTTP取得を行い、HTML・JS・CSS・画像・faviconの全8ファイルがCloudで検証済みの `dist/` とバイト単位で一致することを確認した。Actions成功はジョブ結果APIで確認した。ログZIPの取得は配信先で403となったが、公開処理と公開ファイルの確認は完了している。
+最新の公開: AL-028の新規探索シード・短い画面の操作・遊び方の初期表示をコミット `1671e59` として `main` へプッシュ。[Actions実行 39057135616](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/39057135616) の検証・ビルド・Pages公開は成功。公開URLからTLS検証を有効にしたHTTP取得を行い、HTML・JS・CSS・画像・faviconの全8ファイルがCloudで検証済みの `dist/` とバイト単位で一致した。実操作はCloudとActionsのChromium E2E130件、単体433件と型検査・本番ビルドも成功。Actionsの成功はジョブ結果APIで確認し、前回403だったログZIP取得は今回は再試行していない。
 
 公開URLでのChromium操作確認は前回 `ERR_CERT_AUTHORITY_INVALID` で接続できず、今回は再実施していない。証明書検証は無効化していない。行動案内・六方向移動・保存復元などの実操作はCloud内とActionsのブラウザテストで検証済みであり、公開URLへの直接操作とは区別する。
 
 以下は初回公開からの履歴。
 
+- AL-025〜027の中継所ルート・マップ中心のクリックメニュー・独自画像は `c9d7170` として公開済み。[Actions実行 39053554100](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/39053554100) と当時の公開ファイル一致の確認は成功。
 - AL-011の終了原因と主要な選択の振り返りは `635f8cc` として公開済み。[Actions実行 38928482997](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38928482997) と当時の公開ファイル一致の確認は成功。
 - AL-010の軽傷と移動・探索・処置の連動は `b7ddacb` として公開済み。[Actions実行 38916196234](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38916196234) と当時の公開ファイル一致の確認は成功。
 - AL-009のイベント6件と持ち物・探索方法による分岐は `e0894c0` として公開済み。[Actions実行 38902164967](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/38902164967) と当時の公開ファイル一致の確認は成功。
