@@ -84,6 +84,14 @@ for (const route of [
   test.setTimeout(90_000);
   const run = route.plan();
   let state = run.states[0]!;
+  // Fix only the browser's random boundary; the full expedition still starts through the UI.
+  await page.addInitScript(() => {
+    crypto.getRandomValues = <T extends ArrayBufferView | null>(array: T): T => {
+      if (!(array instanceof Uint32Array) || array.length !== 1) throw new Error("Unexpected seed request");
+      array[0] = 2026;
+      return array;
+    };
+  });
   await page.goto("/");
   await openMenu(page, "mission");
   await expect(page.locator(".relay-routes")).toContainText("4時間 · スクラップ4個");

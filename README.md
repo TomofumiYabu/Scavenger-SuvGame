@@ -58,6 +58,7 @@ npm run build
 - [ゲーム仕様](docs/SPEC.md)
 - [品質向上の行動計画](docs/ROADMAP.md)
 - [次の開発課題](docs/BACKLOG.md)
+- [独立レビューと改善案の採否](docs/REVIEWS.md)
 - [NEO Scavenger参考調査の状況](docs/research/NEO_SCAVENGER.md)
 - [技術構成・設計](docs/ARCHITECTURE.md)
 - [Cloud のセットアップ・検証手順](docs/DEVELOPMENT.md)

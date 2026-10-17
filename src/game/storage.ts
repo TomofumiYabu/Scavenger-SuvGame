@@ -14,12 +14,13 @@ export class SaveStore {
   private expected: string | null = null;
   private legacyProtected = false;
   private migratedSnapshot: string | null = null;
-  constructor(private readonly access: () => StorageAccess) {}
+  // Keep the default deterministic outside the browser; only fresh expeditions use the factory.
+  constructor(private readonly access: () => StorageAccess, private readonly createGame: () => GameState = newGame) {}
   load(): GameState {
     try {
       this.expected = this.access().getItem(SAVE_KEY);
       const raw = this.expected ?? this.access().getItem(LEGACY_SAVE_KEY);
-      if (raw === null) return newGame();
+      if (raw === null) return this.createGame();
       const result = decodeSave(raw);
       if ("state" in result) {
         if (result.kind === "migrated") { this.message = "以前の探索を引き継ぎました。元の保存データは保持しています。"; this.migratedSnapshot = JSON.stringify(result.state); }
@@ -29,7 +30,7 @@ export class SaveStore {
       this.legacyProtected = this.expected === null;
       this.message = result.kind === "unsupported" ? "この保存データは現在のゲームでは対応していません。元のデータを保護し、保存せずに遊べます。" : "保存データを読み込めなかったため、元のデータを保護しています。保存せずに新しい探索を遊べます。";
     } catch { this.fail("このブラウザでは保存できません。ページを閉じると進行状況が失われます。"); }
-    return newGame();
+    return this.createGame();
   }
   private fail(message = "自動保存できませんでした。元の保存は保持しています。ページを閉じると今回の進行状況が失われる可能性があります。"): false {
     this.mode = "unavailable"; this.message = message; return false;

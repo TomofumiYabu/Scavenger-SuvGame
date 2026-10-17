@@ -2033,3 +2033,47 @@ dialog>form .button {
     filter: saturate(.8) brightness(.9);
   }
 }
+
+/* Short screens keep readable map cells and scroll the field above the dock. */
+@media(max-height:650px) {
+  #game {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+  .command-screen {
+    padding-bottom: 72px;
+  }
+  .map-panel {
+    flex: none;
+    container-type: normal;
+  }
+  .map-wrap {
+    height: auto;
+    padding: 78px 12px 125px;
+  }
+  .map-grid {
+    width: min(100%,480px);
+    margin-left: 0;
+  }
+  .command-dock {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+  }
+  .drawer-backdrop {
+    position: fixed;
+    bottom: 64px;
+  }
+  .command-drawer {
+    position: fixed;
+    top: 8px;
+    bottom: 72px;
+    max-height: none;
+  }
+  .drawer-scroll {
+    max-height: none;
+  }
+}

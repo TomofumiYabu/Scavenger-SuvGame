@@ -1,4 +1,4 @@
-import { act, newGame } from "../game/engine";
+import { act } from "../game/engine";
 import { isSearchMode } from "../game/actions";
 import { isItem } from "../game/items";
 import type { Action, ChoiceId, EventId } from "../game/model";
@@ -9,9 +9,10 @@ import type { Outcome } from "./outcome";
 import { render } from "./render";
 import { shell } from "./templates";
 import type { Panel } from "./templates";
+import { createExpedition } from "./seed";
 
 export function startGame(app: HTMLElement): void {
-  const store = new SaveStore(() => localStorage);
+  const store = new SaveStore(() => localStorage, createExpedition);
   let state = store.load();
   let selected = state.position;
   let outcome: Outcome | null = null;
@@ -70,7 +71,7 @@ export function startGame(app: HTMLElement): void {
     }
     if (command === "reset-confirm") {
       dialogs.close("reset");
-      state = newGame(); selected = state.position; outcome = null; panel = null;
+      state = createExpedition(); selected = state.position; outcome = null; panel = null;
       store.replace(state); draw(); focusState(); return;
     }
     if (command === "restore-confirm") {

@@ -15,7 +15,9 @@ import { recordRecap } from "./recap";
 function note(state: GameState, text: string, kind: LogKind = "info"): void {
   state.log = [{ turn: state.turn, text, kind }, ...state.log].slice(0, 12);
 }
-export function newGame(): GameState {
+/** Deterministic by default for simulations; the browser supplies a fresh seed. */
+export function newGame(seed = 2026): GameState {
+  if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff) throw new RangeError("Seed must be an unsigned 32-bit integer");
   return {
     version: 2,
     contentVersion: 8,
@@ -30,7 +32,7 @@ export function newGame(): GameState {
     ground: {},
     discovered: [START, ...neighbors(START)],
     searched: [],
-    rng: 2026,
+    rng: seed,
     status: "active",
     log: [
       {
