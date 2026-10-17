@@ -1,12 +1,13 @@
 import { legacyInventory } from "../../tests/fixtures";
 import { describe, expect, it } from "vitest";
-import { newGame, act } from "./engine";
+import { act } from "./engine";
+import { newLegacyGame, withoutMission } from "./legacy.fixture";
 import { neighbors } from "./model";
 import { deserialize } from "./save";
 
 describe("保存の復元と検証", () => {
   it("進行中の状態を欠損なく復元する", () => {
-    const s = act(act(newGame(), { type: "search" }), {
+    const s = act(act(newLegacyGame(), { type: "search" }), {
       type: "move",
       target: 29,
     });
@@ -15,14 +16,14 @@ describe("保存の復元と検証", () => {
   it.each(["active", "won", "dead", "lost"] as const)(
     "四角形時代のv1を維持し現在地の六角形隣接だけ補完する: %s", (status) => {
       const legacy = {
-        ...newGame(), version: 1, inventory: legacyInventory(newGame().inventory), status, turn: status === "lost" ? 48 : 17,
+        ...withoutMission(newLegacyGame()), version: 1, inventory: legacyInventory(newLegacyGame().inventory), status, turn: status === "lost" ? 48 : 17,
         position: status === "won" ? 6 : 36,
         health: status === "dead" ? 0 : 74,
         discovered: status === "won" ? [5, 6, 13, 36] : [29, 35, 36, 37, 43],
         searched: [36], energy: 41, rng: 12345,
       };
       const loaded = deserialize(JSON.stringify(legacy))!;
-      expect(loaded).toEqual({ ...legacy, version: 2, contentVersion: 7, ground: {}, inventory: { ...newGame().inventory, ...legacy.inventory }, pendingEvent: null, resolvedEvents: [], discovered: [...new Set([...legacy.discovered, ...neighbors(legacy.position)])] });
+      expect(loaded).toEqual({ ...legacy, version: 2, contentVersion: 8, mission: { ruleset: "legacy", repairedRelay: null }, ground: {}, inventory: { ...newLegacyGame().inventory, ...legacy.inventory }, pendingEvent: null, resolvedEvents: [], discovered: [...new Set([...legacy.discovered, ...neighbors(legacy.position)])] });
       expect(deserialize(JSON.stringify(loaded))).toEqual(loaded);
     },
   );
@@ -55,7 +56,7 @@ describe("保存の復元と検証", () => {
     { log: [{ turn: 40, text: "future", kind: "info" }] },
   ])("不正な値や矛盾した状態を拒否する: %j", (override) => {
     expect(
-      deserialize(JSON.stringify({ ...newGame(), ...override })),
+      deserialize(JSON.stringify({ ...newLegacyGame(), ...override })),
     ).toBeNull();
   });
 });

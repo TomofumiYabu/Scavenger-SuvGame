@@ -34,7 +34,7 @@ describe("authentic content6 recap migration and raw preservation", () => {
     const old = old6(pending); expect(Object.hasOwn(old, "recap")).toBe(false);
     const original = JSON.stringify(old, null, 2); const result = decodeSave(original);
     expect(result.kind).toBe("migrated"); if (!("state" in result)) throw new Error("migration expected");
-    const migrated = { ...old, contentVersion: 7, recap: null, discovered: [...new Set([...old.discovered, ...neighbors(old.position)])] };
+    const migrated = { ...old, contentVersion: 8, mission: { ruleset: "legacy", repairedRelay: null }, recap: null, discovered: [...new Set([...old.discovered, ...neighbors(old.position)])] };
     expect(result.state).toEqual(migrated);
     const { store, data, storage } = fixture(original); const loaded = store.load();
     expect(data.size).toBe(1); expect(loaded.recap).toBeNull();

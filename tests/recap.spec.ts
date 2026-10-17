@@ -1,6 +1,8 @@
+import { menuButton, mapTile, openMenu } from "./menus";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { act, newGame } from "../src/game/engine";
+import { act } from "../src/game/engine";
+import { legacyGame as newGame } from "./fixtures";
 import { neighbors, TOWER } from "../src/game/model";
 import type { Action, GameState } from "../src/game/model";
 import { withoutRecap } from "./fixtures";
@@ -19,6 +21,7 @@ const storage = (page: Page): Promise<Record<string, string>> => page.evaluate((
 const saved = (page: Page): Promise<GameState> => page.evaluate(key => JSON.parse(localStorage.getItem(key)!), key);
 const ending = (page: Page) => page.locator(".ending");
 async function openDetails(page: Page) {
+  await openMenu(page, "ending");
   const summary = page.locator("#recap-details summary");
   await summary.focus(); await page.keyboard.press("Enter");
   await expect(page.locator("#recap-details")).toHaveAttribute("open");
@@ -36,7 +39,7 @@ const boundaries: { name: string; configure: (state: GameState) => void; action:
 for (const scenario of boundaries) test(`振り返り：${scenario.name}を確定行動の事実で示し再読込で保持する`, async ({ page }) => {
   const state = at(); scenario.configure(state);
   await seed(page, state); await page.goto("/");
-  await page.getByRole("button", { name: scenario.button, exact: true }).click();
+  await (await menuButton(page, { name: scenario.button, exact: true })).click();
   await expect(page.locator("#ending-title")).toBeFocused();
   await expect(ending(page).locator(".recap-reason")).toContainText(scenario.reason);
   await expect(ending(page).locator(".recap-last")).toContainText(scenario.button === "休息する" ? "休息" : scenario.action.type === "signal" ? "救難信号を送信" : scenario.button);
@@ -65,9 +68,9 @@ for (const width of [320, 390, 1280]) test(`振り返りを${width}pxで読み�
   await page.setViewportSize({ width, height: 900 });
   const state = at(29); state.health = 10; state.rng = 1; state.pendingEvent = { id: "collapsed-cache", tile: 29 };
   await seed(page, state); await page.goto("/");
-  await page.getByRole("button", { name: "棚の奥まで踏み込む", exact: true }).click();
+  await (await menuButton(page, { name: "棚の奥まで踏み込む", exact: true })).click();
   await expect(page.locator("#outcome-title")).toBeFocused();
-  await page.getByRole("button", { name: "終了の詳細へ" }).click();
+  await (await menuButton(page, { name: "終了の詳細へ" })).click();
   await expect(page.locator("#ending-title")).toBeFocused();
   await expect(ending(page).locator(".recap-hints")).toContainText("入口の箱");
   await expect(ending(page).locator(".recap-hints")).toContainText(/0時間.*立ち去|立ち去.*0時間/);
@@ -78,7 +81,8 @@ for (const width of [320, 390, 1280]) test(`振り返りを${width}pxで読み�
   const before = await storage(page); await page.keyboard.press("Enter");
   await expect(page.locator("#recap-details")).toHaveAttribute("open");
   await page.locator("#recap-details summary").evaluate(element => { (window as Window & { recapSummary?: Element }).recapSummary = element; });
-  await page.locator('[data-tile="30"]').click();
+  await (await mapTile(page, '[data-tile="30"]')).click();
+  await openMenu(page, "ending");
   await expect(page.locator("#recap-details")).toHaveAttribute("open");
   expect(await page.locator("#recap-details summary").evaluate(element => element === (window as Window & { recapSummary?: Element }).recapSummary)).toBe(true);
   expect(await storage(page)).toEqual(before);
@@ -90,8 +94,8 @@ for (const width of [320, 390, 1280]) test(`振り返りを${width}pxで読み�
   await page.keyboard.press("Escape"); await expect(ending(page).getByRole("button", { name: "新しい探索" })).toBeFocused();
   expect(await storage(page)).toEqual(before);
   await ending(page).getByRole("button", { name: "新しい探索" }).click();
-  await page.getByRole("button", { name: "新しい探索を始める", exact: true }).click();
-  await expect(ending(page)).toHaveCount(0); await expect(page.locator('[data-tile="36"]')).toBeFocused();
+  await (await menuButton(page, { name: "新しい探索を始める", exact: true })).click();
+  await expect(ending(page)).toHaveCount(0); await expect((await mapTile(page, '[data-tile="36"]'))).toBeFocused();
   expect((await saved(page)).recap).toBeNull();
 });
 
@@ -99,12 +103,12 @@ test("12件のログから消えた探索方式・出来事・治療・休息を
   const state = at(29); state.rng = 1; state.pendingEvent = { id: "collapsed-cache", tile: 29 };
   await seed(page, state); await page.goto("/");
   await page.locator('[data-choice="safe"]').click();
-  await page.getByRole("button", { name: "手早く探す", exact: true }).click();
-  await page.getByRole("button", { name: "包帯を使う", exact: true }).click();
-  await page.locator('[data-tile="30"]').click(); await page.getByRole("button", { name: "ここへ移動", exact: true }).click();
-  await page.getByRole("button", { name: "慎重に探す", exact: true }).click();
+  await (await menuButton(page, { name: "手早く探す", exact: true })).click();
+  await (await menuButton(page, { name: "包帯を使う", exact: true })).click();
+  await (await mapTile(page, '[data-tile="30"]')).click(); await (await menuButton(page, { name: "ここへ移動", exact: true })).click();
+  await (await menuButton(page, { name: "慎重に探す", exact: true })).click();
   await page.locator('[data-choice="leave"]').click();
-  for (let i = 0; i < 30 && await ending(page).count() === 0; i++) await page.getByRole("button", { name: "休息する", exact: true }).click();
+  for (let i = 0; i < 30 && await ending(page).count() === 0; i++) await (await menuButton(page, { name: "休息する", exact: true })).click();
   await expect(ending(page)).toBeVisible();
   const result = await saved(page); expect(result.log).toHaveLength(12); expect(result.recap!.entries.length).toBeGreaterThan(12);
   await expect(page.locator(".journal")).not.toContainText("入口の箱");
@@ -117,14 +121,14 @@ test("12件のログから消えた探索方式・出来事・治療・休息を
 test("0時間の物資移動や不正入力を振り返りに増やさず、確定した行動だけを記録する", async ({ page }) => {
   await seed(page, at()); await page.goto("/");
   for (let i = 0; i < 14; i++) {
-    await page.getByRole("button", { name: "飲料水をここに1個置く", exact: true }).click();
-    await page.getByRole("button", { name: "飲料水を1個拾う", exact: true }).click();
+    await (await menuButton(page, { name: "飲料水をここに1個置く", exact: true })).click();
+    await (await menuButton(page, { name: "飲料水を1個拾う", exact: true })).click();
   }
   expect((await saved(page)).recap).toBeNull();
   const before = await storage(page);
   await page.locator('[data-focus="drop-water"]').evaluate(element => { (element as HTMLButtonElement).dataset.quantity = "0"; (element as HTMLButtonElement).click(); });
   expect(await storage(page)).toEqual(before);
-  await page.getByRole("button", { name: "飲料水を使う", exact: true }).click();
+  await (await menuButton(page, { name: "飲料水を使う", exact: true })).click();
   expect((await saved(page)).recap!.entries).toHaveLength(1);
   expect((await saved(page)).turn).toBe(1);
 });
@@ -141,7 +145,7 @@ test("旧保存の負傷・探索待機・地面を保ち、移行後からの�
   const migrated = await saved(page); expect(migrated.turn).toBe(9); expect(migrated.wound).toBe("minor"); expect(migrated.ground).toEqual(state.ground);
   expect(migrated.recap!.entries).toHaveLength(1);
   expect((await storage(page))[`${key}.original.0`]).toBe(raw);
-  for (let i = 0; i < 30 && await ending(page).count() === 0; i++) await page.getByRole("button", { name: "休息する", exact: true }).click();
+  for (let i = 0; i < 30 && await ending(page).count() === 0; i++) await (await menuButton(page, { name: "休息する", exact: true })).click();
   await expect(ending(page).locator(".ending-summary .recap-coverage")).toContainText(/9時間|一部|途中/);
   await openDetails(page); await expect(page.locator(".recap-timeline")).toContainText("何も取らず立ち去る");
   await expect(page.locator(".recap-timeline")).toContainText("経過 9 → 9時間");

@@ -1,7 +1,9 @@
+import { menuButton, mapTile, openMenu } from "./menus";
 import { withoutWound, withoutRecap } from "./fixtures";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { act, newGame } from "../src/game/engine";
+import { act } from "../src/game/engine";
+import { legacyGame as newGame } from "./fixtures";
 import { eventById, eventChoice } from "../src/game/events";
 import { neighbors } from "../src/game/model";
 import type { ChoiceId, GameState, SearchMode } from "../src/game/model";
@@ -24,7 +26,7 @@ const storage = (page: Page) => page.evaluate(() => Object.fromEntries(Object.en
 const saved = (page: Page): Promise<GameState> => page.evaluate(key => JSON.parse(localStorage.getItem(key)!), key);
 const choice = (page: Page, id: ChoiceId) => page.locator(`[data-choice="${id}"]`);
 async function search(page: Page, mode: SearchMode) {
-  await page.getByRole("button", { name: mode === "quick" ? "手早く探す" : "慎重に探す", exact: true }).click();
+  await (await menuButton(page, { name: mode === "quick" ? "手早く探す" : "慎重に探す", exact: true })).click();
 }
 
 for (const encounter of encounters) for (const mode of ["quick", "careful"] as const) {
@@ -49,7 +51,7 @@ for (const encounter of encounters) for (const mode of ["quick", "careful"] as c
     expect(await storage(page)).toEqual(raw);
     await expect(choice(page, encounter.choice)).toHaveAccessibleDescription(mode === "careful" ? /0時間/ : /1時間.*気力 −/);
     await expect(choice(page, encounter.choice).locator("..")).toContainText(mode === "careful" ? "慎重な探索" : eventChoice(encounter.id, encounter.choice)!.detail);
-    await expect(page.getByRole("button", { name: "休息する", exact: true })).toBeDisabled();
+    await expect((await menuButton(page, { name: "休息する", exact: true }))).toBeDisabled();
     await expect(page.locator('[data-focus="drop-water"]')).toBeDisabled();
     const groundItem = Object.keys(pending.ground[encounter.tile]!)[0]!;
     const pickup = page.locator(`[data-focus="pickup-${groundItem}"]`);
@@ -58,9 +60,10 @@ for (const encounter of encounters) for (const mode of ["quick", "careful"] as c
     await pickup.evaluate(button => { (button as HTMLButtonElement).disabled = false; (button as HTMLButtonElement).click(); });
     expect(await storage(page)).toEqual(raw);
     const remote = neighbors(encounter.tile)[0]!;
-    await page.locator(`[data-tile="${remote}"]`).click();
+    await (await mapTile(page, `[data-tile="${remote}"]`)).click();
     await expect(page.locator(".location-panel")).toContainText("選択中の地点");
     await expect(page.locator(".event-search-context")).toContainText("現在地");
+    await openMenu(page, "encounter");
     await choice(page, encounter.choice).focus(); await page.keyboard.press("Enter");
     await expect(page.locator("#outcome-title")).toBeFocused();
     const expected = act(pending, { type: "choose", event: encounter.id, tile: encounter.tile, choice: encounter.choice });
@@ -75,9 +78,9 @@ for (const encounter of encounters) for (const mode of ["quick", "careful"] as c
       expect(expected.ground[38]?.electrolyte ?? 0).toBe(mode === "careful" ? 2 : 0);
       await expect(page.locator(".outcome-panel")).toContainText("飲料水 +1個");
     }
-    await page.getByRole("button", { name: "マップへ戻る", exact: true }).click();
-    await expect(page.locator(`[data-tile="${encounter.tile}"]`)).toBeFocused();
-    await page.getByRole("button", { name: "現在地の物資を拾う", exact: true }).click();
+    await (await menuButton(page, { name: "マップへ戻る", exact: true })).click();
+    await expect((await mapTile(page, `[data-tile="${encounter.tile}"]`))).toBeFocused();
+    await (await menuButton(page, { name: "現在地の物資を拾う", exact: true })).click();
     await expect(page.locator("#ground-title")).toBeFocused();
     expect(await saved(page)).toEqual(expected);
   });
@@ -108,6 +111,7 @@ for (const encounter of encounters) test(`${encounter.id}: 手持ちだけを費
 for (const width of [320, 390, 1280]) test(`${width}pxで方式別の説明・選択・結果・フォーカスを読める`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });
   await seed(page, at(38)); await page.goto("/");
+  await openMenu(page, "location");
   await page.locator(".location-panel").screenshot({ path: `test-results/event-search-preview-${width}.png` });
   await search(page, "careful");
   await expect(page.locator("#event-title")).toBeFocused();
@@ -133,8 +137,8 @@ test("気力も余裕時間もない追加選択から無料で離れ、通信�
   await expect(choice(page, "leave")).toBeEnabled();
   const pending = await saved(page); expect(pending.turn).toBe(47); expect(pending.energy).toBe(0);
   await choice(page, "leave").click(); expect((await saved(page)).turn).toBe(47);
-  await page.getByRole("button", { name: "スクラップを1個拾う", exact: true }).click();
-  await page.getByRole("button", { name: "救難信号を送る", exact: true }).click();
+  await (await menuButton(page, { name: "スクラップを1個拾う", exact: true })).click();
+  await (await menuButton(page, { name: "救難信号を送る", exact: true })).click();
   await expect(page.locator("#ending-title")).toHaveText("その声は、届いた。");
   expect((await saved(page)).turn).toBe(48);
 });
@@ -174,7 +178,7 @@ test("内容版4の地面・選択待ちを読取専用で引き継ぎ、最初�
   await expect(page.locator(".event-search-context")).toHaveCount(0);
   expect(await storage(page)).toEqual({ [key]: raw }); await page.reload(); expect(await storage(page)).toEqual({ [key]: raw });
   await choice(page, "leave").click(); const after = await saved(page);
-  expect(after.contentVersion).toBe(7); expect(after.turn).toBe(9); expect(after.ground).toEqual(state.ground);
+  expect(after.contentVersion).toBe(8); expect(after.turn).toBe(9); expect(after.ground).toEqual(state.ground);
   expect(after.resolvedEvents).toContain("collapsed-cache");
   expect((await storage(page))[`${key}.original.0`]).toBe(raw); expect((await storage(page))[`${key}.backup`]).toBe(raw);
 });

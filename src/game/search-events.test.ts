@@ -1,3 +1,4 @@
+import { newLegacyGame } from "./legacy.fixture";
 import { describe, expect, it } from "vitest";
 import { actionTerms, assessAction } from "./actions";
 import { act, newGame } from "./engine";
@@ -18,7 +19,7 @@ const scenarios: Scenario[] = [
   { terrain: "tower", id: "backup-generator", paid: "cool", plain: "unwire", supply: "water", paidEnergy: 4, plainEnergy: 10, paidLoot: { scrap: 2 }, quickLoot: { scrap: 1 }, carefulLoot: { scrap: 1 } },
 ];
 function at(terrain: Terrain): GameState {
-  const state = newGame();
+  const state = newLegacyGame();
   state.position = TILES.find(tile => tile.terrain === terrain)!.id;
   state.discovered = [state.position, ...neighbors(state.position)];
   state.inventory.scrap = 3;
@@ -125,7 +126,7 @@ describe.each(scenarios)("$id searches and decisions", scenario => {
 
   it.each(["quick", "careful"] as const)("finishes %s search loot before death/deadline and creates no pending encounter", mode => {
     const hours = mode === "quick" ? 1 : 2;
-    const state = { ...at(scenario.terrain), turn: 48 - hours };
+    const state = { ...at(scenario.terrain), mission: newLegacyGame().mission, turn: 48 - hours };
     const action: Action = { type: "search", mode };
     const ended = act(state, action);
     expect(ended).toMatchObject({ status: "lost", pendingEvent: null, turn: 48, searched: [state.position], ground: { [state.position]: actionTerms(state, action).groundRewards } });
@@ -171,7 +172,7 @@ describe.each(scenarios)("$id searches and decisions", scenario => {
 });
 
 it("resolves a terrain event once across reload, return and another terrain's search", () => {
-  let state = { ...newGame(), position: 30, discovered: [30, ...neighbors(30)] };
+  let state = { ...newLegacyGame(), position: 30, discovered: [30, ...neighbors(30)] };
   state = act(state, { type: "search" });
   state = act(state, choose(state, "leave"));
   state = deserialize(JSON.stringify(state))!;
@@ -191,7 +192,7 @@ it("resolves a terrain event once across reload, return and another terrain's se
 });
 
 it("tower search with two hours left can leave free, collect its base scrap and send in the final hour", () => {
-  const initial = { ...at("tower"), turn: 46 }; initial.inventory.scrap = 2;
+  const initial = { ...at("tower"), mission: newLegacyGame().mission, turn: 46 }; initial.inventory.scrap = 2;
   const found = act(initial, { type: "search" });
   expect(found.pendingEvent?.id).toBe("backup-generator");
   const left = act(found, choose(found, "leave"));

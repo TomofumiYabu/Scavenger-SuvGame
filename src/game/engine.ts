@@ -1,3 +1,4 @@
+import { EXPEDITION_START, relayAt } from "./mission";
 import { eventChoice, eventForTerrain } from "./events";
 import { actionTerms, assessAction, projectStats } from "./actions";
 import {
@@ -17,18 +18,15 @@ function note(state: GameState, text: string, kind: LogKind = "info"): void {
 export function newGame(): GameState {
   return {
     version: 2,
-    contentVersion: 7,
+    contentVersion: 8,
+    mission: { ruleset: "relay-v1", repairedRelay: null },
     recap: null,
-    wound: "none",
+    ...EXPEDITION_START,
     pendingEvent: null,
     resolvedEvents: [],
     turn: 0,
     position: START,
-    health: 100,
-    hunger: 80,
-    thirst: 80,
-    energy: 85,
-    inventory: { water: 2, food: 2, bandage: 1, scrap: 0, snack: 0, electrolyte: 0, medkit: 0, coffee: 0 },
+    inventory: { water: 1, food: 1, bandage: 1, scrap: 0, snack: 0, electrolyte: 0, medkit: 0, coffee: 0 },
     ground: {},
     discovered: [START, ...neighbors(START)],
     searched: [],
@@ -37,7 +35,7 @@ export function newGame(): GameState {
     log: [
       {
         turn: 0,
-        text: "夜が明けた。通信塔は北東。まだ、間に合う。",
+        text: "中継所は西のA2と東のG6。どちらかを修理し、北東G1の通信塔へ。補給と休息を考えて進もう。",
         kind: "info",
       },
     ],
@@ -127,6 +125,11 @@ export function act(previous: GameState, action: Action): GameState {
         note(state, `${terms.hours}時間。${[...recovery, ...costs].join("、")}。`);
       }
       if (injuryDamage) note(state, "棚が崩れ、飛び散った破片で軽い負傷を負った。体力 −10。移動・探索の気力消費が1時間ごとに +2（重複なし）。", "danger");
+      break;
+    }
+    case "repair": {
+      state.mission = { ruleset: "relay-v1", repairedRelay: relayAt(previous.position)!.tile };
+      note(state, "中継所を修理した。通信塔への回線がつながった。", "good");
       break;
     }
     case "signal": {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { assessAction } from "./actions";
-import { act, canAct, newGame } from "./engine";
+import { act, canAct } from "./engine";
+import { newLegacyGame } from "./legacy.fixture";
 import { START, TOWER, neighbors } from "./model";
 import type { Action, GameState } from "./model";
 
@@ -21,14 +22,14 @@ function checkEligibility(state: GameState, action: Action, allowed: boolean): v
 
 describe("action guidance and eligibility", () => {
   it.each([[move, 6], [search, 10]] as const)("requires the exact energy boundary for %j", (action, energy) => {
-    const state = { ...newGame(), energy };
+    const state = { ...newLegacyGame(), energy };
     checkEligibility(state, action, true);
     state.energy -= 1;
     checkEligibility(state, action, false);
     expect(assessAction(state, action).reasons.join()).toContain("気力");
   });
   it("explains nonadjacent movement, exhausted sites, empty supplies and tower requirements", () => {
-    const state = newGame();
+    const state = newLegacyGame();
     checkEligibility(state, { type: "move", target: TOWER }, false);
     state.searched.push(state.position);
     checkEligibility(state, search, false);
@@ -46,14 +47,14 @@ describe("action guidance and eligibility", () => {
     checkEligibility(state, rest, true);
   });
   it.each(["won", "dead", "lost"] as const)("explains all action blocks after %s", status => {
-    const state = { ...newGame(), status };
+    const state = { ...newLegacyGame(), status };
     for (const action of [move, search, rest, signal, { type: "use", item: "water" } as const]) {
       checkEligibility(state, action, false);
       expect(assessAction(state, action).reasons[0]).toContain("探索は終了");
     }
   });
   it("repeated previews leave state and RNG untouched and never reveal a seeded injury", () => {
-    const state = { ...newGame(), position: 0 };
+    const state = { ...newLegacyGame(), position: 0 };
     const original = structuredClone(state);
     const preview = assessAction(state, search);
     for (let i = 0; i < 10; i++) expect(assessAction(state, search)).toEqual(preview);
@@ -65,7 +66,7 @@ describe("action guidance and eligibility", () => {
 
 describe("preview and execution agree", () => {
   it.each([move, search, rest, { type: "use", item: "water" }, { type: "use", item: "food" }, { type: "use", item: "bandage" }, signal] as Action[])("applies the displayed costs, recovery and supplies for %j", action => {
-    const state = { ...newGame(), health: 60, hunger: 50, thirst: 50, energy: 50 };
+    const state = { ...newLegacyGame(), health: 60, hunger: 50, thirst: 50, energy: 50 };
     if (action.type === "signal") { state.position = TOWER; state.inventory.scrap = 3; }
     const preview = assessAction(state, action);
     const result = act(state, action);
@@ -76,13 +77,13 @@ describe("preview and execution agree", () => {
   it.each([
     ["water", "thirst", 90, 98], ["food", "hunger", 100, 99], ["bandage", "health", 95, 100],
   ] as const)("caps %s recovery before its baseline cost", (item, key, value, expected) => {
-    const state = { ...newGame(), [key]: value };
+    const state = { ...newLegacyGame(), [key]: value };
     const action: Action = { type: "use", item };
     expect(assessAction(state, action).after[key]).toBe(expected);
     expect(act(state, action)[key]).toBe(expected);
   });
   it("counts shelter healing before starvation and both depletion penalties", () => {
-    const state = { ...newGame(), health: 95, hunger: 6, thirst: 8 };
+    const state = { ...newLegacyGame(), health: 95, hunger: 6, thirst: 8 };
     const preview = assessAction(state, rest);
     expect(preview.recovery).toEqual({ energy: 35, health: 8 });
     expect(preview.after.health).toBe(76);
@@ -92,13 +93,13 @@ describe("preview and execution agree", () => {
     expect(assessAction(state, rest).recovery.health).toBeUndefined();
   });
   it("allows a recovery to avert depletion and warns about possible lethal injury", () => {
-    const state = { ...newGame(), health: 10, hunger: 1, thirst: 50, position: 0 };
+    const state = { ...newLegacyGame(), health: 10, hunger: 1, thirst: 50, position: 0 };
     expect(assessAction(state, { type: "use", item: "food" }).risks).toEqual([]);
     state.hunger = 50;
     expect(assessAction(state, search).risks.join()).toContain("負傷すると体力が尽きる");
   });
   it("distinguishes last-turn loss, successful signal, and death before signal victory", () => {
-    const state = { ...newGame(), turn: 47, position: TOWER };
+    const state = { ...newLegacyGame(), turn: 47, position: TOWER };
     state.inventory.scrap = 3;
     expect(assessAction(state, rest).risks.join()).toContain("救助の機会を失います");
     expect(act(state, rest).status).toBe("lost");
@@ -111,7 +112,7 @@ describe("preview and execution agree", () => {
 });
 
 it("地面の数値上限でも通常探索が破損状態を作らない", () => {
-  const state = newGame(); state.ground[state.position] = { water: Number.MAX_SAFE_INTEGER };
+  const state = newLegacyGame(); state.ground[state.position] = { water: Number.MAX_SAFE_INTEGER };
   expect(assessAction(state, { type: "search" }).allowed).toBe(false);
   expect(act(state, { type: "search" })).toBe(state);
 });

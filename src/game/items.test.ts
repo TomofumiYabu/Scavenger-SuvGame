@@ -1,3 +1,4 @@
+import { newLegacyGame, withoutMission } from "./legacy.fixture";
 import { describe, expect, it } from "vitest";
 import { act, newGame } from "./engine";
 import { actionTerms, assessAction } from "./actions";
@@ -8,7 +9,7 @@ import { decodeSave, deserialize } from "./save";
 import { legacyInventory } from "../../tests/fixtures";
 
 function at(terrain: Terrain = "ruins"): GameState {
-  const state = newGame();
+  const state = newLegacyGame();
   state.position = TILES.find(tile => tile.terrain === terrain)!.id;
   state.discovered = [state.position, ...neighbors(state.position)];
   for (const item of ITEM_IDS) state.inventory[item] = 0;
@@ -20,7 +21,7 @@ const choose = (state: GameState, choice: "safe" | "deep" | "leave" | "pack" | "
 describe("eight data-driven items and exact capacity", () => {
   it("gives every item a usable recovery or the working signal purpose", () => {
     expect(ITEM_IDS).toHaveLength(8); expect(CAPACITY).toBe(24);
-    expect(inventoryLoad(newGame().inventory)).toBe(9n);
+    expect(inventoryLoad(newGame().inventory)).toBe(5n);
     for (const item of ITEM_IDS) {
       expect(Number.isSafeInteger(ITEMS[item].capacity)).toBe(true);
       expect(ITEMS[item].capacity).toBeGreaterThan(0);
@@ -43,7 +44,7 @@ describe("eight data-driven items and exact capacity", () => {
       for (const key of ["health", "hunger", "thirst", "energy"] as const) expect(capped[key]).toBe(Math.min(100, 99 + (terms.recovery[key] ?? 0)) - (terms.costs[key] ?? 0));
       expect(act(next, action)).toBe(next);
     }
-    const signal = at("tower"); signal.inventory.scrap = 3;
+    const signal = at("tower"); signal.mission = newLegacyGame().mission; signal.inventory.scrap = 3;
     expect(act(signal, { type: "signal" })).toMatchObject({ status: "won", inventory: { scrap: 0 } });
   });
 
@@ -82,7 +83,7 @@ describe("eight data-driven items and exact capacity", () => {
   });
 
   it("preserves exact huge legacy loads and permits unchanged/reducing actions", () => {
-    const state = at("tower"); for (const item of ITEM_IDS) state.inventory[item] = Number.MAX_SAFE_INTEGER;
+    const state = at("tower"); state.mission = newLegacyGame().mission; for (const item of ITEM_IDS) state.inventory[item] = Number.MAX_SAFE_INTEGER;
     const exact = BigInt(Number.MAX_SAFE_INTEGER) * 14n;
     expect(inventoryLoad(state.inventory)).toBe(exact);
     expect(deserialize(JSON.stringify(state))).toEqual(state);
@@ -92,7 +93,7 @@ describe("eight data-driven items and exact capacity", () => {
       expect(assessAction(state, action).allowed).toBe(true);
       expect(inventoryLoad(act(state, action).inventory)).toBeLessThanOrEqual(exact);
     }
-    const legacy = { ...state, version: 1, inventory: legacyInventory(state.inventory) };
+    const legacy = { ...withoutMission(state), version: 1, inventory: legacyInventory(state.inventory) };
     const loaded = deserialize(JSON.stringify(legacy))!;
     expect(loaded.inventory).toEqual({ ...at().inventory, ...legacy.inventory });
     for (const key of ["turn", "rng", "log", "status", "health", "hunger", "thirst", "energy"] as const) expect(loaded[key]).toEqual(state[key]);
@@ -107,11 +108,11 @@ describe("eight data-driven items and exact capacity", () => {
 describe("catalogue save migration and validation", () => {
   it.each([1, 2] as const)("migrates actual content%s with pending/resolved progress without mutations", contentVersion => {
     for (const resolved of [false, true]) {
-      const state = at(); state.turn = 9; state.rng = 12345;
+      const state = at(); state.mission = newLegacyGame().mission; state.turn = 9; state.rng = 12345;
       state.pendingEvent = resolved ? null : { id: "collapsed-cache", tile: state.position };
       state.resolvedEvents = resolved ? ["collapsed-cache"] : [];
       state.inventory.water = Number.MAX_SAFE_INTEGER; state.inventory.scrap = Number.MAX_SAFE_INTEGER;
-      const original = { ...state, contentVersion, inventory: legacyInventory(state.inventory) };
+      const original = { ...withoutMission(state), contentVersion, inventory: legacyInventory(state.inventory) };
       const raw = JSON.stringify(original);
       const result = decodeSave(raw); expect(result).toEqual({ kind: "migrated", state });
       expect(JSON.stringify(original)).toBe(raw); expect(decodeSave(JSON.stringify(state))).toEqual({ kind: "valid", state });
@@ -125,10 +126,10 @@ describe("catalogue save migration and validation", () => {
   });
   it("protects unknown item IDs and does not invent missing legacy supplies", () => {
     for (const contentVersion of [1, 2, 3]) {
-      const state = newGame(); const inventory = contentVersion === 3 ? state.inventory : legacyInventory(state.inventory);
-      expect(decodeSave(JSON.stringify({ ...state, contentVersion, inventory: { ...inventory, future: 1 } })).kind).toBe("unsupported");
+      const state = newLegacyGame(); const inventory = contentVersion === 3 ? state.inventory : legacyInventory(state.inventory);
+      expect(decodeSave(JSON.stringify({ ...withoutMission(state), contentVersion, inventory: { ...inventory, future: 1 } })).kind).toBe("unsupported");
       const { water: _water, ...missing } = inventory;
-      expect(decodeSave(JSON.stringify({ ...state, contentVersion, inventory: missing })).kind).toBe("corrupt");
+      expect(decodeSave(JSON.stringify({ ...withoutMission(state), contentVersion, inventory: missing })).kind).toBe("corrupt");
     }
   });
 });

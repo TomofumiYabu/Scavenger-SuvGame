@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { act, newGame } from "./engine";
+import { act } from "./engine";
+import { newLegacyGame } from "./legacy.fixture";
 import { actionTerms, assessAction, projectStats } from "./actions";
 import { neighbors } from "./model";
 import type { Action, GameState } from "./model";
@@ -7,14 +8,14 @@ import { buildRecapReport } from "./recap";
 import { decodeSave, deserialize } from "./save";
 
 function at(position = 30, overrides: Partial<GameState> = {}): GameState {
-  return { ...newGame(), position, discovered: [position, ...neighbors(position)], ...overrides };
+  return { ...newLegacyGame(), position, discovered: [position, ...neighbors(position)], ...overrides };
 }
 const last = (state: GameState) => state.recap!.entries.at(-1)!;
 const decodedKind = (state: unknown) => decodeSave(JSON.stringify(state)).kind;
 
 describe("factual run recap recording", () => {
   it("records only accepted actions; previews, rejected actions, loads and ground shuffling add none", () => {
-    const state = newGame(); const original = structuredClone(state);
+    const state = newLegacyGame(); const original = structuredClone(state);
     assessAction(state, { type: "search" });
     expect(state).toEqual(original); expect(act(state, { type: "signal" })).toBe(state);
     const searched = act(state, { type: "search" });
@@ -28,7 +29,7 @@ describe("factual run recap recording", () => {
   });
 
   it("retains event choices after the 12 log limit and never mutates earlier histories", () => {
-    const pending = act(newGame(), { type: "move", target: 29 });
+    const pending = act(newLegacyGame(), { type: "move", target: 29 });
     let state = act(pending, { type: "choose", event: "collapsed-cache", tile: 29, choice: "leave" });
     const saved = structuredClone(state); const rng = state.rng;
     state.inventory.water = 30; state.inventory.food = 30;
@@ -43,7 +44,7 @@ describe("factual run recap recording", () => {
   });
 
   it("keeps all 48 accepted timed actions through the deadline without truncation", () => {
-    let state = newGame(); state.inventory.water = 100; state.inventory.food = 100;
+    let state = newLegacyGame(); state.inventory.water = 100; state.inventory.food = 100;
     for (let hour = 0; hour < 48; hour++) state = act(state, hour % 3 === 0 ? { type: "rest" } : { type: "use", item: hour % 3 === 1 ? "water" : "food" });
     expect(state.status).toBe("lost"); expect(state.recap!.entries).toHaveLength(48);
     expect(state.recap!.entries[0]!.fromTurn).toBe(0); expect(last(state).toTurn).toBe(48);
@@ -105,7 +106,7 @@ describe("actual damage attribution and end priority", () => {
   });
 
   it.each([false, true])("distinguishes signal at hour48 from death during signal: fatal=%s", fatal => {
-    const state = act(at(6, { turn: 47, health: fatal ? 12 : 100, hunger: fatal ? 0 : 80, inventory: { ...newGame().inventory, scrap: 3 } }), { type: "signal" });
+    const state = act(at(6, { turn: 47, health: fatal ? 12 : 100, hunger: fatal ? 0 : 80, inventory: { ...newLegacyGame().inventory, scrap: 3 } }), { type: "signal" });
     expect(state.status).toBe(fatal ? "dead" : "won"); expect(decodedKind(state)).toBe("valid");
     expect(buildRecapReport(state).reason).toContain(fatal ? "送信したが" : "脱出に成功");
     expect(last(state).fatalCause).toBe(fatal ? "hunger" : null);
@@ -198,7 +199,7 @@ describe("strict recap save validation", () => {
       (s: GameState) => { (last(s).action as unknown as { extra: number }).extra = 1; },
       (s: GameState) => { s.position = 29; },
     ]) { const state = chosen(); change(state); expect(decodedKind(state)).toBe("corrupt"); }
-    const signal = act(at(6, { turn: 47, inventory: { ...newGame().inventory, scrap: 3 } }), { type: "signal" });
+    const signal = act(at(6, { turn: 47, inventory: { ...newLegacyGame().inventory, scrap: 3 } }), { type: "signal" });
     signal.status = "lost"; expect(decodedKind(signal)).toBe("corrupt");
   });
   it.each([

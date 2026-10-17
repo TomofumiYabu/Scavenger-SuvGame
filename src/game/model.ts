@@ -14,6 +14,7 @@ export type Terrain =
   | "tower";
 import type { Item } from "./items";
 import type { Wound } from "./wounds";
+import type { Mission } from "./mission";
 import type { RunRecap } from "./recap";
 export type { Item } from "./items";
 export { ITEM_NAMES } from "./items";
@@ -28,7 +29,8 @@ export interface Tile {
 }
 export interface GameState {
   version: 2;
-  contentVersion: 7;
+  contentVersion: 8;
+  mission: Mission;
   recap: RunRecap | null;
   wound: Wound;
   pendingEvent: { id: EventId; tile: number; searchMode?: SearchMode } | null;
@@ -54,6 +56,7 @@ export type Action =
   | { type: "rest" }
   | { type: "use"; item: Item }
   | { type: "signal" }
+  | { type: "repair" }
   | { type: "choose"; event: EventId; tile: number; choice: ChoiceId };
 
 export const TERRAIN: Record<

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { assessAction } from "./actions";
-import { act, newGame } from "./engine";
+import { act } from "./engine";
+import { newLegacyGame } from "./legacy.fixture";
 import { decodeSave, deserialize } from "./save";
 import type { Action, ChoiceId, EventId, GameState } from "./model";
 
-const clinic = () => act({ ...newGame(), position: 39, discovered: [39] }, { type: "move", target: 40 });
-const shelter = () => act(act(newGame(), { type: "move", target: 37 }), { type: "move", target: 36 });
+const clinic = () => act({ ...newLegacyGame(), position: 39, discovered: [39] }, { type: "move", target: 40 });
+const shelter = () => act(act(newLegacyGame(), { type: "move", target: 37 }), { type: "move", target: 36 });
 const choose = (state: GameState, choice: ChoiceId): Action => ({ type: "choose", event: state.pendingEvent!.id, tile: state.position, choice });
 const injured = (state: GameState): GameState => ({ ...state, health: 55, hunger: 30, thirst: 30, energy: 20 });
 
@@ -83,16 +84,16 @@ const injured = (state: GameState): GameState => ({ ...state, health: 55, hunger
 
 describe("遭遇の発生と保存の境界", () => {
   it("避難所は開始・探索・読込では出ず、最初の帰還で出る", () => {
-    expect(newGame().pendingEvent).toBeNull(); expect(act(newGame(), { type: "search" }).pendingEvent).toBeNull();
-    expect(deserialize(JSON.stringify(newGame()))?.pendingEvent).toBeNull();
+    expect(newLegacyGame().pendingEvent).toBeNull(); expect(act(newLegacyGame(), { type: "search" }).pendingEvent).toBeNull();
+    expect(deserialize(JSON.stringify(newLegacyGame()))?.pendingEvent).toBeNull();
     expect(shelter().pendingEvent).toEqual({ id: "shelter-embers", tile: 36 });
   });
   it.each([clinic, shelter])("移動後の死亡・時間切れでは遭遇せず、通常探索・読込でも発生しない", entry => {
     const entered = entry(); const target = entered.position;
     const from = target === 40 ? 39 : 37;
-    const base = { ...newGame(), position: from, discovered: [from] };
+    const base = { ...newLegacyGame(), position: from, discovered: [from] };
     for (const override of [{ turn: 47 }, { health: 12, hunger: 0 }]) expect(act({ ...base, ...override }, { type: "move", target }).pendingEvent).toBeNull();
-    const at = { ...newGame(), position: target, discovered: [target] };
+    const at = { ...newLegacyGame(), position: target, discovered: [target] };
     expect(act(at, { type: "search" }).pendingEvent).toBeNull();
     expect(deserialize(JSON.stringify(at))?.pendingEvent).toBeNull();
   });
@@ -116,8 +117,8 @@ describe("遭遇の発生と保存の境界", () => {
   });
   it("3件を一意に解決済みとして保存し、重複・未来のIDは保護する", () => {
     const ids: EventId[] = ["collapsed-cache", "clinic-supplies", "shelter-embers"];
-    expect(deserialize(JSON.stringify({ ...newGame(), resolvedEvents: ids }))?.resolvedEvents).toEqual(ids);
-    expect(deserialize(JSON.stringify({ ...newGame(), resolvedEvents: [...ids, ids[0]] }))).toBeNull();
-    expect(decodeSave(JSON.stringify({ ...newGame(), resolvedEvents: ["future-event"] })).kind).toBe("unsupported");
+    expect(deserialize(JSON.stringify({ ...newLegacyGame(), resolvedEvents: ids }))?.resolvedEvents).toEqual(ids);
+    expect(deserialize(JSON.stringify({ ...newLegacyGame(), resolvedEvents: [...ids, ids[0]] }))).toBeNull();
+    expect(decodeSave(JSON.stringify({ ...newLegacyGame(), resolvedEvents: ["future-event"] })).kind).toBe("unsupported");
   });
 });

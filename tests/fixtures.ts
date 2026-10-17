@@ -1,3 +1,4 @@
+import { newGame } from "../src/game/engine";
 import type { Item } from "../src/game/items";
 /** Actual old catalogues have exactly the four original keys. */
 export function legacyInventory(inventory: Record<Item, number>) {
@@ -18,7 +19,20 @@ export function withoutWound<T extends { wound: unknown }>(state: T): Omit<T, "w
 }
 
 /** Historical schemas/content 1–6 have no structured recap. */
-export function withoutRecap<T extends { recap: unknown }>(state: T): Omit<T, "recap"> {
-  const { recap: _recap, ...old } = state;
+export function withoutRecap<T extends { recap: unknown }>(state: T): Omit<T, "recap" | "mission"> {
+  const { recap: _recap, mission: _mission, ...old } = state as T & { mission?: unknown };
+  return old;
+}
+
+/** Rule-specific regression fixtures retain the original expedition resources. */
+export function legacyGame() {
+  const state = newGame();
+  state.mission = { ruleset: "legacy", repairedRelay: null };
+  state.hunger = 80; state.thirst = 80; state.energy = 85;
+  state.inventory.water = 2; state.inventory.food = 2;
+  return state;
+}
+export function withoutMission<T extends { mission: unknown }>(state: T): Omit<T, "mission"> {
+  const { mission: _mission, ...old } = state;
   return old;
 }

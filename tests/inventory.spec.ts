@@ -1,6 +1,8 @@
+import { menuButton, openMenu } from "./menus";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { act, newGame } from "../src/game/engine";
+import { act } from "../src/game/engine";
+import { legacyGame as newGame } from "./fixtures";
 import { ITEMS, ITEM_IDS } from "../src/game/items";
 import { neighbors } from "../src/game/model";
 import { legacyInventory, withoutGround, withoutWound, withoutRecap } from "./fixtures";
@@ -19,16 +21,17 @@ for (const width of [320, 390, 1280]) test(`${width}pxで満載でも探索で�
   state.inventory.coffee = 11; // Full backpack: 24/24, searching still succeeds.
   await seed(page, JSON.stringify(state)); await page.goto("/");
   await expect(page.getByTestId("capacity")).toHaveText("容量 24 / 24");
+  await openMenu(page, "inventory");
   const inventory = page.locator(".inventory");
   await expect(inventory.locator(".item")).toHaveCount(8);
   for (const item of ITEM_IDS) {
     const card = inventory.locator(".item").filter({ has: page.getByTestId(`item-${item}`) });
     await expect(card).toContainText(ITEMS[item].name);
     await expect(card).toContainText(`容量 ${ITEMS[item].capacity} / 個`);
-    await expect(card).toContainText(ITEMS[item].description);
+    await expect(card).toContainText(item === "scrap" ? "通信塔の修理・送信に3個使用" : ITEMS[item].description);
   }
-  const quick = page.getByRole("button", { name: "手早く探す" });
-  const careful = page.getByRole("button", { name: "慎重に探す" });
+  const quick = (await menuButton(page, { name: "手早く探す" }));
+  const careful = (await menuButton(page, { name: "慎重に探す" }));
   await expect(quick).toBeEnabled(); await expect(careful).toBeEnabled();
   await expect(quick).toHaveAccessibleDescription(/発見→地点に残る：スクラップ \+1個/);
   await expect(quick).not.toHaveAccessibleDescription(/容量が足りません/);
@@ -37,7 +40,7 @@ for (const width of [320, 390, 1280]) test(`${width}pxで満載でも探索で�
   await expect(page.locator("#guide-search-quick")).toBeFocused();
   await expect(page.getByTestId("capacity")).toHaveText("容量 24 / 24");
   await expect(page.getByTestId("ground-scrap")).toHaveText("×1");
-  const pickup = page.getByRole("button", { name: "スクラップを1個拾う", exact: true });
+  const pickup = (await menuButton(page, { name: "スクラップを1個拾う", exact: true }));
   await expect(pickup).toBeDisabled();
   await expect(pickup).toHaveAccessibleDescription(/容量が足りません/);
   await expect(page.locator(".ground")).not.toContainText("安全な整数");
@@ -45,13 +48,14 @@ for (const width of [320, 390, 1280]) test(`${width}pxで満載でも探索で�
   await pickup.evaluate(button => { (button as HTMLButtonElement).disabled = false; });
   await pickup.click(); expect(await storage(page)).toEqual(before);
   await expect(page.getByTestId("remaining")).toHaveText("47");
-  await page.reload(); await expect(pickup).toBeDisabled(); expect(await storage(page)).toEqual(before);
-  const drop = page.getByRole("button", { name: "スクラップをここに1個置く", exact: true });
+  await page.reload(); await openMenu(page, "ground"); await expect(pickup).toBeDisabled(); expect(await storage(page)).toEqual(before);
+  const drop = (await menuButton(page, { name: "スクラップをここに1個置く", exact: true }));
   await drop.scrollIntoViewIfNeeded();
   if (width === 390) await drop.tap(); else { await drop.focus(); await page.keyboard.press("Enter"); }
   await expect(page.locator("#guide-drop-scrap")).toBeFocused();
   await expect(page.getByTestId("capacity")).toHaveText("容量 22 / 24");
   await expect(page.getByTestId("ground-scrap")).toHaveText("×2");
+  await openMenu(page, "ground");
   await pickup.scrollIntoViewIfNeeded(); await pickup.focus(); await page.keyboard.press("Enter");
   await expect(page.locator("#guide-pickup-scrap")).toBeFocused();
   await expect(page.getByTestId("capacity")).toHaveText("容量 24 / 24");
@@ -59,6 +63,7 @@ for (const width of [320, 390, 1280]) test(`${width}pxで満載でも探索で�
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)!), key)).toEqual(expected);
   await page.reload(); await expect(quick).toBeDisabled(); await expect(careful).toBeDisabled();
   await expect(page.getByTestId("ground-scrap")).toHaveText("×1");
+  await openMenu(page, "ground");
   await page.locator(".ground").screenshot({ path: `test-results/ground-full-${width}.png` });
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
 });
@@ -73,20 +78,22 @@ test("content2の過積載を保持し、読込と拾う拒否は書かず、使
   await expect(page.getByTestId("item-snack")).toHaveText("×0");
   await expect(page.getByTestId("capacity")).toHaveText("容量 36028797018963969 / 24");
   await expect(page.locator('.inventory [data-region="capacity-warning"] .action-risk')).toContainText("所持品はすべて保持");
-  await expect(page.getByRole("button", { name: "手早く探す" })).toBeEnabled();
+  await expect((await menuButton(page, { name: "手早く探す" }))).toBeEnabled();
   expect(await storage(page)).toEqual({ [key]: original });
   await page.reload(); expect(await storage(page)).toEqual({ [key]: original });
+  await openMenu(page, "inventory");
   await page.locator(".inventory").screenshot({ path: "test-results/inventory-overfull-320.png" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
-  await page.getByRole("button", { name: "飲料水を使う", exact: true }).click();
+  await (await menuButton(page, { name: "飲料水を使う", exact: true })).click();
   await expect(page.getByTestId("remaining")).toHaveText("36");
   const saved = await storage(page);
   expect(saved[`${key}.original.0`]).toBe(original); expect(saved[`${key}.backup`]).toBe(original);
   expect(JSON.parse(saved[key]!)).toEqual(act(state, { type: "use", item: "water" }));
   await page.reload(); await expect(page.getByTestId("item-water")).toHaveText(`×${Number.MAX_SAFE_INTEGER - 1}`);
+  await openMenu(page, "settings");
   await page.getByText("保存の確認・復旧", { exact: true }).click();
-  await page.getByRole("button", { name: "ひとつ前の保存に戻す", exact: true }).click();
-  await page.getByRole("button", { name: "保存を戻す", exact: true }).click();
+  await (await menuButton(page, { name: "ひとつ前の保存に戻す", exact: true })).click();
+  await (await menuButton(page, { name: "保存を戻す", exact: true })).click();
   await expect(page.getByTestId("remaining")).toHaveText("37");
   await expect(page.getByTestId("item-water")).toHaveText(`×${Number.MAX_SAFE_INTEGER}`);
   expect((await storage(page))[`${key}.original.0`]).toBe(original);
@@ -99,29 +106,29 @@ test("満載でも出来事の発見を地点に残し、結果から現在地�
   const original = JSON.stringify(state); await seed(page, original); await page.goto("/");
   for (let pass = 0; pass < 2; pass++) {
     await expect(page.locator("#event-title")).toBeFocused();
-    await expect(page.getByRole("button", { name: "入口の箱を調べる" })).toBeEnabled();
-    await expect(page.getByRole("button", { name: "棚の奥まで踏み込む" })).toBeEnabled();
+    await expect((await menuButton(page, { name: "入口の箱を調べる" }))).toBeEnabled();
+    await expect((await menuButton(page, { name: "棚の奥まで踏み込む" }))).toBeEnabled();
     expect(await storage(page)).toEqual({ [key]: original });
     if (pass === 0) await page.reload();
   }
-  await page.getByRole("button", { name: "入口の箱を調べる" }).click();
+  await (await menuButton(page, { name: "入口の箱を調べる" })).click();
   await expect(page.locator("#outcome-title")).toBeFocused();
   await expect(page.locator(".outcome-panel")).toContainText("所持品：変化なし");
   await expect(page.locator(".outcome-panel")).toContainText("発見→地点に残る：飲料水 +1個（0 → 1） / 保存食 +1個（0 → 1）");
   await expect(page.getByTestId("remaining")).toHaveText("47");
   const before = await storage(page);
-  await page.getByRole("button", { name: "現在地の物資を拾う", exact: true }).click();
+  await (await menuButton(page, { name: "現在地の物資を拾う", exact: true })).click();
   await expect(page.locator("#ground-title")).toBeFocused();
   expect(await storage(page)).toEqual(before);
-  await expect(page.getByRole("button", { name: "飲料水を1個拾う", exact: true })).toBeDisabled();
+  await expect((await menuButton(page, { name: "飲料水を1個拾う", exact: true }))).toBeDisabled();
   await expect(page.locator(".ground")).not.toContainText("安全な整数");
-  await page.getByRole("button", { name: "濃縮コーヒーを使う", exact: true }).click();
+  await (await menuButton(page, { name: "濃縮コーヒーを使う", exact: true })).click();
   await expect(page.getByTestId("capacity")).toHaveText("容量 23 / 24");
 });
 
 test("未知の所持品を含む保存は保護し、不正な物資DOM入力も無変更で拒否する", async ({ page }) => {
   await page.goto("/");
-  const use = page.getByRole("button", { name: "飲料水を使う", exact: true });
+  const use = (await menuButton(page, { name: "飲料水を使う", exact: true }));
   const before = await storage(page);
   for (const item of ["future", "constructor", "__proto__"]) {
     await use.evaluate((button, item) => { (button as HTMLElement).dataset.item = item; }, item);
@@ -132,7 +139,7 @@ test("未知の所持品を含む保存は保護し、不正な物資DOM入力�
   const raw = JSON.stringify({ ...state, inventory: { ...state.inventory, future: 1 } });
   await page.evaluate(({ key, raw }) => localStorage.setItem(key, raw), { key, raw }); await page.reload();
   await expect(page.locator(".notice")).toContainText("対応していません");
-  await page.getByRole("button", { name: "手早く探す" }).click();
+  await (await menuButton(page, { name: "手早く探す" })).click();
   expect((await storage(page))[key]).toBe(raw);
   await page.reload(); expect((await storage(page))[key]).toBe(raw);
 });
@@ -142,7 +149,7 @@ for (const width of [320, 390, 1280]) test(`${width}pxで過積載25から23へ�
   const state = newGame(); state.inventory.food = 0; state.inventory.scrap = 10;
   await seed(page, JSON.stringify(state)); await page.goto("/");
   await expect(page.getByTestId("capacity")).toHaveText("容量 25 / 24");
-  const button = page.getByRole("button", { name: "飲料水を使う", exact: true });
+  const button = (await menuButton(page, { name: "飲料水を使う", exact: true }));
   await button.scrollIntoViewIfNeeded(); await button.focus();
   await button.evaluate(element => { (window as Window & { savedItemButton?: Element }).savedItemButton = element; });
   const top = await button.evaluate(element => element.getBoundingClientRect().top);

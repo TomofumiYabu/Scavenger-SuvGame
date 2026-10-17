@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { actionTerms, assessAction } from "./actions";
-import { act, newGame } from "./engine";
+import { act } from "./engine";
+import { newLegacyGame } from "./legacy.fixture";
 import { EVENTS, eventChoice } from "./events";
 import { ITEMS, ITEM_IDS } from "./items";
 import { neighbors, START, TILES, TOWER } from "./model";
@@ -8,7 +9,7 @@ import type { Action, ChoiceId, GameState, Terrain } from "./model";
 import { deserialize } from "./save";
 
 function at(terrain: Terrain = "ruins"): GameState {
-  const state = newGame();
+  const state = newLegacyGame();
   state.position = TILES.find(tile => tile.terrain === terrain)!.id;
   state.discovered = [state.position, ...neighbors(state.position)];
   state.rng = 1; // The next draw injures in ruins.
@@ -65,7 +66,7 @@ describe("persistent light injury and action costs", () => {
     [{ type: "search", mode: "quick" }, 12, 2],
     [{ type: "search", mode: "careful" }, 20, 4],
   ] as const)("requires exact wounded energy for %j", (action, energy, extra) => {
-    const state: GameState = { ...newGame(), wound: "minor", energy };
+    const state: GameState = { ...newLegacyGame(), wound: "minor", energy };
     const snapshot = structuredClone(state);
     expect(assessAction(state, action)).toMatchObject({ allowed: true, woundEnergyCost: extra, costs: { energy } });
     expect(act(state, action).energy).toBe(0);
@@ -99,7 +100,7 @@ describe("persistent light injury and action costs", () => {
         expect(actionTerms(state, choose(state, choice.id)).woundEnergyCost).toBe(0);
       }
     }
-    const state: GameState = { ...newGame(), wound: "minor" };
+    const state: GameState = { ...newLegacyGame(), wound: "minor" };
     state.ground[state.position] = { coffee: 1 };
     for (const action of [{ type: "rest" }, ...ITEM_IDS.map(item => ({ type: "use", item })), { type: "signal" }, { type: "pickup", item: "coffee", quantity: 1 }, { type: "drop", item: "water", quantity: 1 }] as Action[]) {
       expect(actionTerms(state, action).woundEnergyCost).toBe(0);
@@ -198,7 +199,7 @@ describe("treatment routes and retained survival rules", () => {
       expect(deserialize(JSON.stringify(result))).toEqual(result);
       expect(act(result, { type: "use", item: "bandage" })).toBe(result);
     }
-    const tower: GameState = { ...newGame(), wound: "minor", position: TOWER, discovered: [TOWER, ...neighbors(TOWER)], turn: 47 };
+    const tower: GameState = { ...newLegacyGame(), wound: "minor", position: TOWER, discovered: [TOWER, ...neighbors(TOWER)], turn: 47 };
     tower.inventory.scrap = 3;
     expect(act(tower, { type: "signal" })).toMatchObject({ wound: "minor", status: "won", turn: 48, energy: tower.energy });
     expect(act({ ...tower, health: 12, hunger: 3 }, { type: "signal" })).toMatchObject({ wound: "minor", status: "dead" });

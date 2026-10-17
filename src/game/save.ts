@@ -1,3 +1,4 @@
+import { relayAt } from "./mission";
 import { recapHasUnknown, validateRecap } from "./recap";
 import { isWound } from "./wounds";
 import { ITEM_IDS, LEGACY_ITEM_IDS } from "./items";
@@ -19,12 +20,12 @@ const tileList = (value: unknown): value is number[] =>
   new Set(value).size === value.length &&
   value.every((id) => integer(id, 0, SIZE * SIZE - 1));
 
-const SUPPORTED_CONTENT = [1, 2, 3, 4, 5, 6, 7];
-const hasModernItems = (s: Record<string, unknown>): boolean => s.version === 2 && integer(s.contentVersion, 3, 7);
-const hasGround = (s: Record<string, unknown>): boolean => s.version === 2 && integer(s.contentVersion, 4, 7);
+const SUPPORTED_CONTENT = [1, 2, 3, 4, 5, 6, 7, 8];
+const hasModernItems = (s: Record<string, unknown>): boolean => s.version === 2 && integer(s.contentVersion, 3, 8);
+const hasGround = (s: Record<string, unknown>): boolean => s.version === 2 && integer(s.contentVersion, 4, 8);
 // Content 1 knew only the cache; content 2–4 knew the original movement events.
 const ORIGINAL_EVENT_IDS = [EVENT_ID, "clinic-supplies", "shelter-embers"];
-const allowedEvents = (content: unknown) => EVENTS.filter(event => (content === 5 || content === 6 || content === 7) || (content === 1 ? event.id === EVENT_ID : ORIGINAL_EVENT_IDS.includes(event.id)));
+const allowedEvents = (content: unknown) => EVENTS.filter(event => (content === 5 || content === 6 || content === 7 || content === 8) || (content === 1 ? event.id === EVENT_ID : ORIGINAL_EVENT_IDS.includes(event.id)));
 const supportedEvent = (id: string, content: unknown): boolean => allowedEvents(content).some(event => event.id === id);
 
 export type SaveResult = { kind: "valid" | "migrated"; state: GameState } | { kind: "corrupt" | "unsupported" };
@@ -34,6 +35,12 @@ export function decodeSave(raw: string): SaveResult {
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { return { kind: "corrupt" }; }
   if (record(parsed) && (parsed.version !== 1 && parsed.version !== 2 || parsed.version === 2 && !SUPPORTED_CONTENT.includes(parsed.contentVersion as number))) return { kind: "unsupported" };
+  if (record(parsed)) {
+    const modern = parsed.version === 2 && parsed.contentVersion === 8;
+    if (!modern && parsed.mission !== undefined) return { kind: "unsupported" };
+    if (modern && record(parsed.mission) && typeof parsed.mission.ruleset === "string" && !["legacy", "relay-v1"].includes(parsed.mission.ruleset)) return { kind: "unsupported" };
+    if (!modern && record(parsed.recap) && Array.isArray(parsed.recap.entries) && parsed.recap.entries.some(entry => record(entry) && record(entry.action) && entry.action.type === "repair")) return { kind: "unsupported" };
+  }
   // Even old schemas must not silently discard a future injury state.
   if (record(parsed) && typeof parsed.wound === "string" && !isWound(parsed.wound)) return { kind: "unsupported" };
   if (record(parsed) && (parsed.version === 1 || Number(parsed.contentVersion) < 6) && parsed.wound === "minor") return { kind: "unsupported" };
@@ -52,12 +59,12 @@ export function decodeSave(raw: string): SaveResult {
     }
   }
   if (record(parsed)) {
-    const current = parsed.version === 2 && parsed.contentVersion === 7;
+    const current = parsed.version === 2 && (parsed.contentVersion === 7 || parsed.contentVersion === 8);
     if (!current && parsed.recap !== undefined && parsed.recap !== null) return { kind: "unsupported" };
     if (current && recapHasUnknown(parsed.recap)) return { kind: "unsupported" };
   }
   const state = validate(raw);
-  return state ? { kind: record(parsed) && (parsed.version === 1 || parsed.contentVersion !== 7) ? "migrated" : "valid", state } : { kind: "corrupt" };
+  return state ? { kind: record(parsed) && (parsed.version === 1 || parsed.contentVersion !== 8) ? "migrated" : "valid", state } : { kind: "corrupt" };
 }
 export function deserialize(raw: string): GameState | null {
   const result = decodeSave(raw);
@@ -74,9 +81,16 @@ function validate(raw: string): GameState | null {
       !integer(s.rng, 0, 0xffffffff)
     )
       return null;
+    if (s.version === 2 && s.contentVersion === 8) {
+      const mission = s.mission;
+      if (!record(mission) || Object.keys(mission).length !== 2 || !Object.hasOwn(mission, "ruleset") || !Object.hasOwn(mission, "repairedRelay")) return null;
+      if (mission.ruleset !== "legacy" && mission.ruleset !== "relay-v1") return null;
+      if (mission.repairedRelay !== null && (mission.ruleset !== "relay-v1" || typeof mission.repairedRelay !== "number" || !relayAt(mission.repairedRelay))) return null;
+      if (mission.ruleset === "relay-v1" && s.status === "won" && mission.repairedRelay === null) return null;
+    }
     // Current content requires the field. Historical saves may omit it; redundant
     // "none" is accepted, while malformed or future values fail closed.
-    if ((s.version === 2 && integer(s.contentVersion, 6, 7) || "wound" in s) && !isWound(s.wound)) return null;
+    if ((s.version === 2 && integer(s.contentVersion, 6, 8) || "wound" in s) && !isWound(s.wound)) return null;
     for (const key of ["health", "hunger", "thirst", "energy"])
       if (!integer(s[key], 0, 100)) return null;
     if (!record(s.inventory)) return null;
@@ -144,8 +158,9 @@ function validate(raw: string): GameState | null {
     // hex ring for square-grid saves, without inferring an unavailable route.
     const result = {
       ...s,
-      version: 2, contentVersion: 7,
-      recap: s.version === 2 && s.contentVersion === 7 ? s.recap : null,
+      version: 2, contentVersion: 8,
+      mission: s.version === 2 && s.contentVersion === 8 ? s.mission : { ruleset: "legacy", repairedRelay: null },
+      recap: s.version === 2 && (s.contentVersion === 7 || s.contentVersion === 8) ? s.recap : null,
       wound: isWound(s.wound) ? s.wound : "none",
       ground: hasGround(s) ? s.ground : {},
       inventory: { snack: 0, electrolyte: 0, medkit: 0, coffee: 0, ...s.inventory },

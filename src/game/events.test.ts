@@ -1,3 +1,4 @@
+import { newLegacyGame } from "./legacy.fixture";
 import { describe, expect, it } from "vitest";
 import { act, newGame } from "./engine";
 import { assessAction } from "./actions";
@@ -12,7 +13,7 @@ describe("備蓄庫の選択", () => {
     expect(entry().pendingEvent).toEqual({ id: EVENT_ID, tile: 29 });
     expect(act(newGame(), { type: "move", target: 30 }).pendingEvent).toBeNull();
     for (const override of [{ turn: 47 }, { health: 12, hunger: 0 }]) expect(act({ ...newGame(), ...override }, { type: "move", target: 29 }).pendingEvent).toBeNull();
-    expect(deserialize(JSON.stringify({ ...newGame(), position: 29, discovered: [29] }))?.pendingEvent).toBeNull();
+    expect(deserialize(JSON.stringify({ ...newLegacyGame(), position: 29, discovered: [29] }))?.pendingEvent).toBeNull();
   });
   it.each<Action>([{ type: "move", target: 36 }, { type: "search" }, { type: "rest" }, { type: "use", item: "water" }, { type: "signal" }])("未解決中は通常行動を拒否: %j", action => {
     const state = entry(); expect(act(state, action)).toBe(state);
@@ -20,7 +21,7 @@ describe("備蓄庫の選択", () => {
   });
   it("入口の回収は表示どおりの費用と収穫で、乱数を使わない", () => {
     const state = entry(); const next = act(state, choose("safe"));
-    expect(next).toMatchObject({ turn: 2, energy: 75, hunger: 74, thirst: 72, rng: state.rng, inventory: state.inventory, ground: { [state.position]: { water: 1, food: 1 } }, pendingEvent: null, resolvedEvents: [EVENT_ID] });
+    expect(next).toMatchObject({ turn: 2, energy: 55, hunger: 49, thirst: 42, rng: state.rng, inventory: state.inventory, ground: { [state.position]: { water: 1, food: 1 } }, pendingEvent: null, resolvedEvents: [EVENT_ID] });
     expect(assessAction(state, choose("safe"))).toMatchObject({ hours: 1, rewards: {}, groundRewards: { water: 1, food: 1 }, costs: { energy: 4, hunger: 3, thirst: 4 } });
   });
   it("奥の回収は選択確定時だけ抽選し、再読込と同じ選択で再現する", () => {
@@ -28,7 +29,7 @@ describe("備蓄庫の選択", () => {
     assessAction(state, choose("deep")); expect(state).toEqual(before);
     const next = act(state, choose("deep"));
     expect(next).toEqual(act(deserialize(JSON.stringify(state))!, choose("deep")));
-    expect(next).toMatchObject({ turn: 2, health: 100, energy: 67, hunger: 72, thirst: 70, inventory: state.inventory, ground: { [state.position]: { scrap: 2, water: 1 } } });
+    expect(next).toMatchObject({ turn: 2, health: 100, energy: 47, hunger: 47, thirst: 40, inventory: state.inventory, ground: { [state.position]: { scrap: 2, water: 1 } } });
     expect(next.rng).not.toBe(state.rng);
     expect(act({ ...state, rng: 1 }, choose("deep")).health).toBe(90);
   });
@@ -49,7 +50,7 @@ describe("備蓄庫の選択", () => {
     expect(back.pendingEvent).toBeNull();
   });
   it("最後の時間と死亡を通常と同じ順に解決し待機を残さない", () => {
-    const state = { ...entry(), recap: null, turn: 47 };
+    const state = { ...entry(), mission: newLegacyGame().mission, recap: null, turn: 47 };
     expect(assessAction(state, choose("safe")).risks.join()).toContain("救助の機会");
     expect(act(state, choose("safe"))).toMatchObject({ status: "lost", pendingEvent: null });
     const danger = { ...state, health: 12, hunger: 3 };
@@ -60,7 +61,7 @@ describe("備蓄庫の選択", () => {
     expect(deserialize(JSON.stringify({ ...entry(), ...override }))).toBeNull();
   });
   it("未知の内容は非対応として保護する", () => {
-    for (const override of [{ contentVersion: 8 }, { version: 3 }, { pendingEvent: { id: "future", tile: 29 } }, { resolvedEvents: ["future"] }]) expect(decodeSave(JSON.stringify({ ...entry(), ...override })).kind).toBe("unsupported");
+    for (const override of [{ contentVersion: 9 }, { version: 3 }, { pendingEvent: { id: "future", tile: 29 } }, { resolvedEvents: ["future"] }]) expect(decodeSave(JSON.stringify({ ...entry(), ...override })).kind).toBe("unsupported");
   });
 });
 

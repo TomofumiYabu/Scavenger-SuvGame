@@ -1,3 +1,4 @@
+import { newLegacyGame, withoutMission } from "./legacy.fixture";
 import { legacyInventory } from "../../tests/fixtures";
 import { describe, expect, it } from "vitest";
 import { assessAction } from "./actions";
@@ -14,7 +15,7 @@ const terrainLoot: [Terrain, Partial<Record<Item, number>>, Item][] = [
   ["shelter", { food: 1, water: 1 }, "food"], ["tower", { scrap: 1 }, "scrap"],
 ];
 function at(terrain: Terrain): GameState {
-  const state = newGame();
+  const state = newLegacyGame();
   state.position = TILES.find(tile => tile.terrain === terrain)!.id;
   state.discovered = [state.position, ...neighbors(state.position)];
   state.rng = 1; // The next legacy draw injures in ruins.
@@ -68,7 +69,7 @@ describe("two search methods", () => {
     const fragile = { ...at("ruins"), health: 10 };
     expect(act(fragile, quick).status).toBe("dead");
     expect(act(fragile, careful)).toMatchObject({ health: 10, status: "active", inventory: fragile.inventory, ground: { [fragile.position]: { scrap: 3, water: 1, snack: 1 } } });
-    const lastChance = { ...at("tower"), turn: 46 };
+    const lastChance = { ...at("tower"), mission: newLegacyGame().mission, turn: 46 };
     lastChance.inventory.scrap = 2;
     const found = act(lastChance, quick);
     const fast = act(found, { type: "choose", event: "backup-generator", tile: found.position, choice: "leave" });
@@ -79,7 +80,7 @@ describe("two search methods", () => {
   });
 
   it("rejects overrun and allows exactly 48 hours, with death taking priority", () => {
-    const state = { ...at("shelter"), turn: 47 };
+    const state = { ...at("shelter"), mission: newLegacyGame().mission, turn: 47 };
     expect(act(state, careful)).toBe(state);
     expect(assessAction(state, careful).reasons.join()).toContain("必要 2時間 / 残り 1時間");
     expect(act(state, quick)).toMatchObject({ turn: 48, status: "lost" });
@@ -109,7 +110,7 @@ describe("two search methods", () => {
 
   it.each(["quick", "careful"] as SearchMode[])("keeps old saves and a reloaded search exhausted for %s", mode => {
     for (const version of [1, 2]) {
-      const legacy = { ...newGame(), version, contentVersion: 1, inventory: legacyInventory(newGame().inventory), searched: [36], rng: 12345 };
+      const legacy = { ...withoutMission(newLegacyGame()), version, contentVersion: 1, inventory: legacyInventory(newGame().inventory), searched: [36], rng: 12345 };
       const loaded = deserialize(JSON.stringify(legacy))!;
       expect(loaded.rng).toBe(12345);
       expect(act(loaded, { type: "search", mode })).toBe(loaded);

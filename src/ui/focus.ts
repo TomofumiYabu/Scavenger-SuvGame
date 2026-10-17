@@ -6,12 +6,16 @@ interface FocusSnapshot {
   x: number;
   y: number;
   top?: number;
+  scroller: HTMLElement | null;
+  capacityNotice: { element: HTMLElement; height: number } | null;
 }
 
 export function captureFocus(element: HTMLElement | null = document.activeElement instanceof HTMLElement ? document.activeElement : null): FocusSnapshot {
-  return { element, key: element?.dataset.focus, description: element?.getAttribute("aria-describedby") ?? undefined,
+  const capacityNotice = element?.closest(".inventory")?.querySelector<HTMLElement>('[data-region="capacity-warning"]');
+  return { element, key: element?.dataset.focus, description: element?.getAttribute("aria-describedby")?.replace(/-description$/, "") ?? undefined,
     region: element?.closest<HTMLElement>(".ground-item, .ground, .item, .location-actions, .map-panel, .inventory, .recovery") ?? null,
-    x: window.scrollX, y: window.scrollY, top: element?.getBoundingClientRect().top };
+    x: window.scrollX, y: window.scrollY, top: element?.getBoundingClientRect().top, scroller: element?.closest<HTMLElement>(".drawer-scroll") ?? null,
+    capacityNotice: capacityNotice ? { element: capacityNotice, height: capacityNotice.getBoundingClientRect().height } : null };
 }
 
 function usable(element: HTMLElement | null): element is HTMLElement {
@@ -19,6 +23,10 @@ function usable(element: HTMLElement | null): element is HTMLElement {
 }
 
 export function restoreFocus(snapshot: FocusSnapshot): void {
+  // At the top of a drawer, scrolling cannot compensate for a removed warning.
+  // Keep its space for this interaction; normal navigation redraws clear it.
+  const notice = snapshot.capacityNotice;
+  if (notice?.element.isConnected && !notice.element.childElementCount && notice.height > 0) notice.element.style.minHeight = `${notice.height}px`;
   const keyed = snapshot.key ? document.querySelector<HTMLElement>(`[data-focus="${CSS.escape(snapshot.key)}"]`) : null;
   let target = usable(snapshot.element) ? snapshot.element : usable(keyed) ? keyed : null;
   if (!target && snapshot.description) { const description = document.getElementById(snapshot.description); if (usable(description)) target = description; }
@@ -27,7 +35,8 @@ export function restoreFocus(snapshot: FocusSnapshot): void {
   if (target) target.focus({ preventScroll: true });
   const anchor = target && target === snapshot.element && snapshot.top !== undefined
     ? target.getBoundingClientRect().top - snapshot.top : 0;
-  window.scrollTo(snapshot.x, snapshot.y + anchor);
+  if (snapshot.scroller?.isConnected) snapshot.scroller.scrollTop += anchor;
+  window.scrollTo(snapshot.x, snapshot.y + (snapshot.scroller ? 0 : anchor));
   if (target && target !== snapshot.element) {
     const box = target.getBoundingClientRect();
     if (box.bottom <= 0 || box.top >= innerHeight) target.scrollIntoView({ block: "nearest", behavior: "instant" });

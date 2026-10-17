@@ -1,3 +1,4 @@
+import { missionDetails, relayAt } from "./mission";
 import { ITEMS, isItem, CAPACITY, inventoryLoad, capacityChange } from "./items";
 import { eventChoice, eventById } from "./events";
 import { ITEM_NAMES, MAX_TURNS, TOWER, neighbors, tileAt } from "./model";
@@ -76,7 +77,16 @@ export function actionTerms(state: GameState, action: Action): ActionTerms {
       terms.recovery = { ...ITEMS[action.item].recovery };
       terms.treatsWound = ITEMS[action.item].treatsWound;
       break;
-    case "signal": terms.supplies.scrap = 3; break;
+    case "signal": {
+      const signal = missionDetails(state).signal;
+      terms.hours = signal.hours; terms.costs = { ...signal.costs }; terms.supplies.scrap = signal.scrap;
+      break;
+    }
+    case "repair": {
+      const site = relayAt(state.position);
+      if (site) { terms.hours = site.hours; terms.costs = { ...site.costs }; terms.supplies.scrap = site.scrap; }
+      break;
+    }
     case "choose":
       { const choice = eventChoice(action.event, action.choice, state.pendingEvent?.searchMode);
         if (choice) { terms.hours = choice.hours; terms.costs = { ...choice.costs }; terms.groundRewards = { ...choice.rewards }; terms.recovery = { ...choice.recovery }; terms.supplies = { ...choice.supplies }; terms.treatsWound = choice.treatsWound ?? false; if (choice.injury) { terms.injury = { oneIn: 3, damage: RUINS_DAMAGE }; terms.advanceRng = true; } }
@@ -146,7 +156,7 @@ export function assessAction(state: GameState, action: Action): ActionAssessment
       else if (action.type === "pickup" && isItem(action.item) && (state.ground[state.position]?.[action.item] ?? 0) < action.quantity) reasons.push(`${ITEM_NAMES[action.item]}が地面に足りません（必要 ${action.quantity}個 / 地面 ${state.ground[state.position]?.[action.item] ?? 0}個）`);
     }
     if (action.type === "use" && !isItem(action.item)) reasons.push("この物資は使用できません");
-    if (action.type === "use" && isItem(action.item) && !ITEMS[action.item].usable) reasons.push(action.item === "scrap" ? "スクラップは通信塔の送信機に使います" : "この物資は使用できません");
+    if (action.type === "use" && isItem(action.item) && !ITEMS[action.item].usable) reasons.push(action.item === "scrap" ? "スクラップは中継所の修理と通信塔の送信に使います" : "この物資は使用できません");
     for (const [item, count] of Object.entries(terms.supplies) as [Item, number][]) {
       if (state.inventory[item] < count) reasons.push(`${ITEM_NAMES[item]}が足りません（必要 ${count}個 / 所持 ${state.inventory[item]}個）`);
     }
@@ -157,6 +167,12 @@ export function assessAction(state: GameState, action: Action): ActionAssessment
     for (const [item, count] of Object.entries(terms.groundRewards) as [Item, number][]) {
       if (!Number.isSafeInteger((state.ground[state.position]?.[item] ?? 0) + count)) reasons.push(`${ITEM_NAMES[item]}の地面の数量が多すぎて置けません`);
     }
+    if (action.type === "repair") {
+      if (state.mission.ruleset !== "relay-v1") reasons.push("以前の探索では中継所の修理は不要です");
+      if (!relayAt(state.position)) reasons.push("中継所A2またはG6で修理してください");
+      if (state.mission.repairedRelay !== null) reasons.push("中継所は修理済みです。通信塔G1へ向かってください");
+    }
+    if (action.type === "signal" && state.mission.ruleset === "relay-v1" && state.mission.repairedRelay === null) reasons.push("中継所A2またはG6のどちらかを先に修理してください");
     if (action.type === "signal" && state.position !== TOWER) reasons.push("通信塔で送信してください");
   }
   const { after, depletion } = projectStats(state, terms);
