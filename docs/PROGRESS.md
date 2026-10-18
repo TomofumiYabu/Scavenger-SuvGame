@@ -1,12 +1,12 @@
 # 進捗
 
-## AL-030 操作情報の改善（Cloud検証完了・公開待ち）
+## AL-030 操作情報の改善（実装・Cloud/Actions検証・公開確認完了）
 
-対象HEAD `c75e0ad`、公開版 `2a7377e`。ユーザーのレビュー・改善実装依頼を受け、Sol 2名のブラウザUI/純ゲーム状態比較をrootが判断し、6点を実装した。drawerヘッダー下のscroll外に現在値表示、stat shortcutから目的操作へのfocus、選択地点の探索状態/残置物要約、確定収穫・回復・治療の常時要約、立ち去り後の出来事再利用不可案内、モバイル目標番号の折返し修正。ゲームルール数値・保存形式は変更なし。
+対象HEAD `c75e0ad`、レビュー基準時点の公開版 `2a7377e`。ユーザーのレビュー・改善実装依頼を受け、Sol 2名のブラウザUI/純ゲーム状態比較をrootが判断し、6点を実装した。drawerヘッダー下のscroll外に現在値表示、stat shortcutから目的操作へのfocus、選択地点の探索状態/残置物要約、確定収穫・回復・治療の常時要約、立ち去り後の出来事再利用不可案内、モバイル目標番号の折返し修正。ゲームルール数値・保存形式は変更なし。
 
 イベント選択待ち中の使用/休息許可、難易度変更、治療の必須化、慎重探索後の0時間変更は今回保留。イベント待機中の行動許可には探索後発火条件・recap履歴・時間切れ・保存の設計検討が必要。自動比較だけで難易度調整値は決めず、固定経路の再現性と選択による差を今後検証する材料とする。Wiki調査のPendingと異版保存互換不要の方針は維持する。
 
-実装者の限定検証unit25件（新3+既存22）・E2E23件（既存18+新5）は成功、Sol最終コードレビューは要修正なし。rootは320/390pxのencounter/treatment/stash/leave画面を確認。統合後 `npm run check` はunit458件（21ファイル）、型検査、本番build、Chromium E2E151件（3.0分）がすべて成功。ログ `/tmp/afterlight-decision-ui-check.log`。Cloud検証完了、CI/deployは未実施。公開コードは `2a7377e`。
+実装者の限定検証unit25件（新3+既存22）・E2E23件（既存18+新5）は成功、Sol最終コードレビューは要修正なし。rootはCloudのChromiumで320/390pxのencounter/treatment/stash/leave画面を確認。統合後 `npm run check` はunit458件（21ファイル）、型検査、本番build、Chromium E2E151件（3.0分）がすべて成功。ログ `/tmp/afterlight-decision-ui-check.log`。製品commit `0cf07c7348f1643ef0777d59ae91250ab0833361` をpushし、[Actions 39083968155](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/39083968155)でtest/buildとdeployの成功を確認した。同じHEADでTLS検証付きHTTP取得を行い、公開dist全8ファイルがCloud検証済みbuildとバイト一致した。公開ホストでの実ブラウザ操作は行っていない。人による面白さ・難易度評価は未完了。次の候補は固定攻略の資源/選択差を比較し、難易度調整を検討すること。
 
 ## 現行コードの追加リファクタリング要否レビュー（調査のみ）
 
