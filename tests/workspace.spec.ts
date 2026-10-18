@@ -68,7 +68,7 @@ for (const width of [320, 390, 1366]) test(`${width}pxの地図・画像・メ�
   await page.keyboard.press("Escape");
   await expect(tile).toBeFocused();
   await page.getByRole("button", { name: /水分.*飲料を使う/ }).click();
-  await expect(page.locator("#inventory-title")).toBeFocused();
+  await expect(page.locator('[data-focus="use-water"]')).toBeFocused();
   await expect(page.getByRole("button", { name: "飲料水を使う", exact: true })).toBeVisible();
   await page.keyboard.press("Tab");
   expect(await page.locator(".command-drawer").evaluate(element => element.contains(document.activeElement))).toBe(true);

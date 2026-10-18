@@ -1,6 +1,7 @@
 import { act } from "../game/engine";
 import { isSearchMode } from "../game/actions";
-import { isItem } from "../game/items";
+import { isItem, ITEMS, ITEM_IDS } from "../game/items";
+import type { Stat } from "../game/items";
 import type { Action, ChoiceId, EventId } from "../game/model";
 import { SaveStore } from "../game/storage";
 import { captureFocus, connectDialogs, restoreFocus, reveal } from "./focus";
@@ -57,7 +58,17 @@ export function startGame(app: HTMLElement): void {
       const name = button.dataset.panel as Panel;
       if (name === "location") selected = state.position;
       if (panel === name && button.closest(".command-dock")) closePanel();
-      else openPanel(name, button);
+      else {
+        openPanel(name, button);
+        const stat = button.dataset.stat as Stat | undefined;
+        if (stat) {
+          const candidates = ITEM_IDS.filter(item => (ITEMS[item].recovery as Partial<Record<Stat, number>>)[stat]);
+          const item = candidates.find(item => state.inventory[item] > 0) ?? candidates[0];
+          const key = stat === "energy" ? "rest" : item ? `use-${item}` : undefined;
+          const action = key ? game.querySelector<HTMLButtonElement>(`[data-focus="${key}"]`) : null;
+          if (action) reveal(action.disabled ? game.querySelector(`#guide-${key}`) : action);
+        }
+      }
       return;
     }
     if (button.dataset.tile !== undefined) {

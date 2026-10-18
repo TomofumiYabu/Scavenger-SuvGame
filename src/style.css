@@ -805,6 +805,31 @@ button:hover:not(:disabled) {
   font-size: 11px;
 }
 
+.drawer-resources {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border-bottom: 1px solid #9c92643f;
+  background: #202c2b;
+  font-size: 11px;
+}
+
+.drawer-resources > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.drawer-context { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 11px; }
+
+.drawer-resources strong { font-size: 13px; color: var(--gold); }
+.location-state { font-size: 12px; color: #d9c798; }
+.event-once-note { font-size: 12px; color: #d9c798; }
+
 .drawer-scroll {
   overflow: auto;
   overscroll-behavior: contain;
@@ -1556,6 +1581,8 @@ dialog>form .button {
 }
 
 .step-number {
+  flex-shrink: 0;
+  white-space: nowrap;
   font: 20px ui-monospace,monospace;
   color: var(--gold);
 }
