@@ -14,7 +14,7 @@
 
 数値ルール・保存処理・形式は変更しない。レビュー時の限定unitは4ファイル67件成功。seed 0〜127の合法後続40,465件でdecode/state一致、確定遷移4,118件でsave/backup/reload一致を確認（0時間573件、128 run終了）。全状態・全ブラウザを網羅するものではなく、人の面白さ評価でもない。
 
-rootは320/1366pxの出来事予告と、320×600・667×375・1366×900の保存警告/設定を実Chromiumで確認し、横overflowなし。実装後の独立再レビューは要修正なし。3件を統合した最終 `npm run check` はexit 0、unit478件（21ファイル）・型検査・本番build・Chromium E2E161件（6.5分）が成功。追加はunit20件とE2E10件。ログ: `/tmp/afterlight-al031-final-check.log`。文書13ファイルのローカルリンクと差分空白検査も成功。公開確認は未実施。
+rootは320/1366pxの出来事予告と、320×600・667×375・1366×900の保存警告/設定を実Chromiumで確認し、横overflowなし。実装後の独立再レビューは要修正なし。3件を統合した最終 `npm run check` はexit 0、unit478件（21ファイル）・型検査・本番build・Chromium E2E161件（6.5分）が成功。追加はunit20件とE2E10件。ログ: `/tmp/afterlight-al031-final-check.log`。文書13ファイルのローカルリンクと差分空白検査も成功。製品コミット `88d62f13e126b710e2f9ba539fc688b50b6c20ec` をmainへpushし、[Actions 39433790603](https://github.com/TomofumiYabu/Scavenger-SuvGame/actions/runs/39433790603)の検証・GitHub Pages公開が成功。公開全8ファイルをTLS検証付きHTTPで取得し、Cloudで検証したdistとのバイト一致を確認した。実ブラウザ操作はCloudで実施し、公開ホスト上での直接操作は行っていない。
 
 ## 2026-10-18 — AL-030 操作情報の改善
 
