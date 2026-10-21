@@ -8,9 +8,10 @@ import { neighbors, TILES } from "../game/model";
 import type { Action, GameState } from "../game/model";
 import { SaveStore } from "../game/storage";
 import { templates } from "./templates";
+import type { Panel } from "./templates";
 
-const html = (state: GameState, selected = state.position) => templates({ state, selected,
-  store: new SaveStore(() => ({ getItem: () => null, setItem: () => undefined })), outcome: null, panel: "location" });
+const html = (state: GameState, selected = state.position, panel: Panel = "location") => templates({ state, selected,
+  store: new SaveStore(() => ({ getItem: () => null, setItem: () => undefined })), outcome: null, panel });
 const summary = (markup: string, id: string) => markup.split(`id="${id}" class="action-details"`)[1]!.split('<details class="guidance-more">')[0]!;
 
 it("keeps search harvest and capped recovery/treatment outside the supplemental details", () => {
@@ -99,4 +100,53 @@ it("does not reveal an undiscovered or unreachable destination encounter", () =>
   expect(assessAction(state, { type: "move", target: 29 }).allowed).toBe(true);
   expect(summary(html(state, 29), "guide-move")).not.toContain('class="encounter-preview"');
   expect(summary(html(newGame(1), 7), "guide-move")).not.toContain('class="encounter-preview"');
+});
+
+it.each([
+  ["capped drink and hunger damage", { health: 20, hunger: 0, thirst: 90 }, { type: "use", item: "water" }, "guide-use-water"],
+  ["two-hour depletion", { hunger: 7, thirst: 7 }, { type: "search", mode: "careful" }, "guide-search-careful"],
+  ["sheltered recovery", { health: 98, energy: 90 }, { type: "rest" }, "guide-rest"],
+] as const)("shows the executed values before %s without changing state", (_label, changes, action, key) => {
+  const state: GameState = { ...newGame(), ...changes };
+  const original = structuredClone(state);
+  const after = act(state, action);
+  expect(after).not.toBe(state);
+  const visible = summary(html(state), key);
+  expect(visible).toContain("行動後の見込み");
+  for (const stat of Object.keys(STAT_NAMES) as Stat[]) {
+    expect(visible).toContain(`${STAT_NAMES[stat]} ${state[stat]} → ${after[stat]}`);
+  }
+  expect(visible).toContain(`残り ${48 - after.turn}時間`);
+  expect(state).toEqual(original);
+});
+
+it("shows both possible health outcomes without predicting the injury roll", () => {
+  const state = { ...newGame(1), position: 29, health: 20, hunger: 0 };
+  const injured = act(state, { type: "search", mode: "quick" });
+  const safe = act({ ...state, rng: 2 }, { type: "search", mode: "quick" });
+  expect(injured.health).toBe(0); expect(safe.health).toBe(8);
+  const visible = summary(html(state), "guide-search-quick");
+  expect(visible).toContain("行動後の見込み（負傷時を含む）");
+  expect(visible).toContain("体力 20 → 0〜8");
+  expect(summary(html({ ...state, rng: 2 }), "guide-search-quick")).toBe(visible);
+});
+
+it("does not project disabled or zero-time actions as progress", () => {
+  const state = newGame(); state.energy = 0;
+  expect(summary(html(state), "guide-search-quick")).not.toContain("action-projection");
+  expect(summary(html(state), "guide-drop-water")).not.toContain("action-projection");
+});
+
+it.each(EVENTS)("keeps a direct return to $id from other menus without resolving it", event => {
+  const tile = TILES.find(tile => tile.terrain === event.terrain)!.id;
+  const state: GameState = { ...newGame(), position: tile, pendingEvent: { id: event.id, tile,
+    ...(event.trigger === "search" ? { searchMode: "careful" as const } : {}) } };
+  const before = structuredClone(state);
+  for (const panel of ["location", "inventory", "ground", "mission", "journal", "settings"] as const) {
+    const markup = html(state, tile, panel);
+    expect(markup).toContain(`data-focus="pending-choice">「${event.title}」の選択に戻る</button>`);
+  }
+  expect(html(state, tile, "encounter")).not.toContain('data-focus="pending-choice"');
+  expect(html(newGame())).not.toContain('data-focus="pending-choice"');
+  expect(state).toEqual(before);
 });

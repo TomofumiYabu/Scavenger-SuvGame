@@ -827,6 +827,8 @@ button:hover:not(:disabled) {
 .drawer-context { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 11px; }
 
 .drawer-resources strong { font-size: 13px; color: var(--gold); }
+.drawer-event-link { grid-column: 1 / -1; text-align: center; }
+.drawer-event-link .text-button { min-height: 32px; font-size: 11px; color: #ffe2a4; }
 .location-state { font-size: 12px; color: #d9c798; }
 .event-once-note { font-size: 12px; color: #d9c798; }
 
@@ -1007,6 +1009,22 @@ button:hover:not(:disabled) {
 
 .action-effect {
   color: #c1c9af;
+}
+
+.action-projection {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 10px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-left: 2px solid #8b805c;
+  background: #17272366;
+  color: #e0dfcd;
+}
+
+.action-projection strong {
+  grid-column: 1 / -1;
+  font-weight: 500;
 }
 
 .guidance-more {

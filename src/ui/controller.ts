@@ -91,7 +91,11 @@ export function startGame(app: HTMLElement): void {
       if (backup && store.replace(backup)) {
         state = backup; selected = state.position; outcome = null; panel = state.pendingEvent ? "encounter" : state.status !== "active" ? "ending" : null;
         draw(); focusState();
-      } else { draw(); reveal(game.querySelector('[data-action="restore"]')); }
+      } else {
+        draw();
+        const restore = game.querySelector<HTMLButtonElement>('[data-action="restore"]')!;
+        reveal(restore.disabled ? game.querySelector(".recovery summary") : restore);
+      }
       return;
     }
     if (command === "current" || command === "return-map") {
