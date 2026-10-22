@@ -150,6 +150,22 @@ export function neighbors(id: number): number[] {
       : Math.abs(dy) === 1 && (dx === 0 || dx === diagonal);
   }).map((tile) => tile.id);
 }
+
+/** Minimum movement count on the hex map; supplies, stops and encounters are separate. */
+export function minimumMoves(from: number, to: number): number {
+  tileAt(from); tileAt(to);
+  const distance = new Map([[from, 0]]);
+  const queue = [from];
+  for (const tile of queue) {
+    const moves = distance.get(tile)!;
+    if (tile === to) return moves;
+    for (const next of neighbors(tile)) {
+      if (!distance.has(next)) { distance.set(next, moves + 1); queue.push(next); }
+    }
+  }
+  throw new Error("Unreachable tile");
+}
+
 export function coordinates(id: number): string {
   const tile = tileAt(id);
   return `${String.fromCharCode(65 + tile.x)}${tile.y + 1}`;

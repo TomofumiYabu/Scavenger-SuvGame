@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SIZE, TILES, neighbors } from "./model";
+import { SIZE, TILES, neighbors, minimumMoves } from "./model";
 
 describe("odd-r 六角形の隣接", () => {
   it("49地点のIDと座標を維持し、内部の両行とも6隣接になる", () => {
@@ -42,5 +42,23 @@ describe("odd-r 六角形の隣接", () => {
       if (!distance.has(next)) { distance.set(next, distance.get(id)! + 1); path.push(next); }
     }
     expect(distance.get(6)).toBe(7);
+  });
+});
+
+describe("地点までの最短移動", () => {
+  it.each([[36, 6, 7], [36, 7, 4], [36, 41, 5], [7, 6, 6], [41, 6, 5], [0, 48, 9]])(
+    "%iから%iは最短%i回で、逆方向も同じ", (from, to, expected) => {
+      expect(minimumMoves(from, to)).toBe(expected);
+      expect(minimumMoves(to, from)).toBe(expected);
+    });
+  it("同じ地点は0回で、全ての六角形の辺は1回", () => {
+    for (const tile of TILES) {
+      expect(minimumMoves(tile.id, tile.id)).toBe(0);
+      for (const next of neighbors(tile.id)) expect(minimumMoves(tile.id, next)).toBe(1);
+    }
+  });
+  it("存在しない地点を経路として扱わない", () => {
+    expect(() => minimumMoves(-1, 6)).toThrow("Invalid tile");
+    expect(() => minimumMoves(36, 49)).toThrow("Invalid tile");
   });
 });

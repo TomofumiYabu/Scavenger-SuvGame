@@ -150,3 +150,63 @@ it.each(EVENTS)("keeps a direct return to $id from other menus without resolving
   expect(html(newGame())).not.toContain('data-focus="pending-choice"');
   expect(state).toEqual(before);
 });
+
+it("shows the full repair-and-signal budget for either route without changing progress", () => {
+  const state = newGame(); state.inventory.scrap = 5;
+  const before = structuredClone(state);
+  const markup = html(state, state.position, "mission");
+  expect(markup).toContain("修理・送信の合計 8個 · 所持 5個 · あと 3個");
+  expect(markup).toContain("修理・送信の合計 10個 · 所持 5個 · あと 5個");
+  state.inventory.scrap = 12;
+  expect(html(state)).not.toMatch(/あと -\d/);
+  state.inventory.scrap = 5;
+  expect(state).toEqual(before);
+});
+
+it("marks the other relay unnecessary after repair and only budgets the signal", () => {
+  const state = newGame(); state.mission = { ruleset: "relay-v1", repairedRelay: 7 };
+  state.inventory.scrap = 2;
+  const markup = html(state, state.position, "mission");
+  expect(markup).toContain("復旧済み · 次はG1で送信");
+  expect(markup).toContain("もう一方の修理は不要です");
+  expect(markup).toContain("送信用の部品はあと 2個です");
+  expect(markup).not.toContain("修理・送信の合計");
+  state.mission = { ruleset: "legacy", repairedRelay: null };
+  expect(html(state)).toContain("送信用の部品はあと 1個です");
+});
+
+it("shows exact capacity beside ground pickups and provides a round trip to inventory", () => {
+  const state = newGame(); const before = structuredClone(state);
+  const markup = html(state, state.position, "ground");
+  const capacity = markup.split('class="ground-capacity"')[1]!.split("</div>")[0]!;
+  expect(capacity).toContain("5 / 24"); expect(capacity).toContain("空き 19");
+  expect(capacity).toContain('data-panel="inventory" data-focus="ground-inventory"');
+  expect(markup).toContain('data-action="show-ground" data-focus="inventory-ground"');
+  expect(state).toEqual(before);
+});
+
+it("keeps over-capacity counts exact and never advertises negative space", () => {
+  const state = newGame(); state.inventory.water = Number.MAX_SAFE_INTEGER;
+  const markup = html(state);
+  const capacity = markup.split('class="ground-capacity"')[1]!.split("</div>")[0]!;
+  expect(capacity).toContain(`${2n * BigInt(Number.MAX_SAFE_INTEGER) + 3n} / 24`);
+  expect(capacity).toContain("空き 0 · 容量超過");
+});
+
+it("shows minimum travel to a known landmark without revealing supplies or changing state", () => {
+  const state = newGame(); const before = structuredClone(state);
+  expect(html(state, 7)).toContain("現在地から最短 4回の移動 · 4時間");
+  expect(html(state, 6)).toContain("現在地から最短 7回の移動 · 7時間");
+  expect(html(state, 7)).toContain("途中の探索・補給・出来事にも時間が必要です");
+  expect(html(state, 7)).not.toContain("残した物：");
+  expect(html(state, 0)).not.toContain("現在地から最短");
+  expect(html(state)).not.toContain("現在地から最短");
+  expect(state).toEqual(before);
+});
+
+it("warns when even the minimum travel exceeds the remaining time", () => {
+  const state = newGame(); state.turn = 45;
+  expect(html(state, 7)).toContain("移動だけでも残り時間を超えます");
+  state.turn = 44;
+  expect(html(state, 7)).not.toContain("移動だけでも残り時間を超えます");
+});
