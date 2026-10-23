@@ -96,7 +96,7 @@ test("破損したセーブから安全に再開する", async ({ page }) => {
     localStorage.setItem("afterlight.save.v1", "{broken"),
   );
   await page.goto("/");
-  await expect(page.getByRole("status")).toContainText(
+  await expect(page.locator('.notice[role="status"]')).toContainText(
     "保存データを読み込めなかった",
   );
   await (await menuButton(page, { name: "手早く探す" })).click();
@@ -112,10 +112,10 @@ test("ストレージ禁止でも通知してプレイを継続する", async ({
     });
   });
   await page.goto("/");
-  await expect(page.getByRole("status")).toContainText("保存できません");
+  await expect(page.locator('.notice[role="status"]')).toContainText("保存できません");
   await (await menuButton(page, { name: "手早く探す" })).click();
   await expect(page.getByTestId("remaining")).toHaveText("47");
-  await expect(page.getByRole("status")).toContainText(
+  await expect(page.locator('.notice[role="status"]')).toContainText(
     "自動保存できませんでした",
   );
 });
@@ -346,7 +346,7 @@ test("未来の主保存は旧保存があっても保護し、通常プレイ�
     localStorage.setItem("afterlight.save.v1", legacy);
   }, { original, legacy: JSON.stringify({ ...withoutRecap(withoutWound(withoutGround(newGame()))), version: 1, inventory: legacyInventory(newGame().inventory), turn: 10 }) });
   await page.goto("/");
-  await expect(page.getByRole("status")).toContainText("対応していません");
+  await expect(page.locator('.notice[role="status"]')).toContainText("対応していません");
   await expect(page.getByTestId("remaining")).toHaveText("48");
   await (await menuButton(page, { name: "手早く探す" })).click();
   expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBe(original);
@@ -397,7 +397,7 @@ test("バックアップ容量エラーで主保存を保護し、再読込で�
     };
   });
   await (await menuButton(page, { name: "飲料水を使う" })).click();
-  await expect(page.getByRole("status")).toContainText("自動保存できませんでした");
+  await expect(page.locator('.notice[role="status"]')).toContainText("自動保存できませんでした");
   await expect(page.getByTestId("remaining")).toHaveText("46");
   expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBe(original);
   await page.reload(); await expect(page.getByTestId("remaining")).toHaveText("47");
@@ -416,7 +416,7 @@ test("原文を退避できないリセットは元の保存を置き換えな�
   await page.goto("/");
   await (await menuButton(page, { name: "新しい探索", exact: true })).click();
   await (await menuButton(page, { name: "新しい探索を始める" })).click();
-  await expect(page.getByRole("status")).toContainText("保存の切り替えを確認できませんでした");
+  await expect(page.locator('.notice[role="status"]')).toContainText("保存の切り替えを確認できませんでした");
   await (await menuButton(page, { name: "手早く探す" })).click();
   expect(await page.evaluate(() => localStorage.getItem("afterlight.save.v2"))).toBe(original);
 });

@@ -2,7 +2,7 @@ import { act } from "../game/engine";
 import { isSearchMode } from "../game/actions";
 import { isItem, ITEMS, ITEM_IDS } from "../game/items";
 import type { Stat } from "../game/items";
-import type { Action, ChoiceId, EventId } from "../game/model";
+import type { Action, ChoiceId, EventId, GameState } from "../game/model";
 import { SaveStore } from "../game/storage";
 import { captureFocus, connectDialogs, restoreFocus, reveal } from "./focus";
 import { eventOutcome } from "./outcome";
@@ -11,6 +11,9 @@ import { render } from "./render";
 import { shell } from "./templates";
 import type { Panel } from "./templates";
 import { createExpedition } from "./seed";
+import { actionFeedback } from "./feedback";
+import { mapKeyTarget } from "./map-navigation";
+import { restorePreview } from "./restore-preview";
 
 export function startGame(app: HTMLElement): void {
   const store = new SaveStore(() => localStorage, createExpedition);
@@ -22,6 +25,12 @@ export function startGame(app: HTMLElement): void {
   app.innerHTML = shell;
   const game = app.querySelector<HTMLElement>("#game")!;
   const dialogs = connectDialogs(app);
+  let offeredBackup: GameState | null = null;
+  const previewRestore = (backup: GameState | null) => {
+    offeredBackup = backup;
+    app.querySelector<HTMLElement>("#restore-preview")!.innerHTML = restorePreview(state, backup);
+    app.querySelector<HTMLButtonElement>('[data-action="restore-confirm"]')!.disabled = !backup;
+  };
   const draw = () => render(game, { state, selected, store, outcome, panel });
   const currentTile = () => game.querySelector<HTMLElement>(`[data-tile="${state.position}"]`);
   const focusState = () => reveal(state.pendingEvent ? game.querySelector("#event-title") : state.status !== "active" ? game.querySelector("#ending-title") : currentTile());
@@ -40,6 +49,13 @@ export function startGame(app: HTMLElement): void {
   };
   app.addEventListener("keydown", event => {
     if (!(event instanceof KeyboardEvent) || app.querySelector("dialog[open]")) return;
+    const tile = event.target instanceof HTMLElement ? event.target.closest<HTMLButtonElement>(".map-grid [data-tile]") : null;
+    if (!panel && tile && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key) && !event.altKey && !event.ctrlKey && !event.metaKey) {
+      event.preventDefault();
+      const target = mapKeyTarget(Number(tile.dataset.tile), event.key, event.shiftKey);
+      if (target !== undefined) reveal(game.querySelector(`.map-grid [data-tile="${target}"]:not(:disabled)`));
+      return;
+    }
     if (event.key === "Escape" && panel) { event.preventDefault(); closePanel(); }
     if (event.key === "Tab" && panel) {
       const drawer = game.querySelector<HTMLElement>(".command-drawer")!;
@@ -60,7 +76,7 @@ export function startGame(app: HTMLElement): void {
       if (panel === name && button.closest(".command-dock")) closePanel();
       else {
         openPanel(name, button);
-        const stat = button.dataset.stat as Stat | undefined;
+        const stat = (button.dataset.stat ?? button.dataset.recoveryStat) as Stat | undefined;
         if (stat) {
           const candidates = ITEM_IDS.filter(item => (ITEMS[item].recovery as Partial<Record<Stat, number>>)[stat]);
           const item = candidates.find(item => state.inventory[item] > 0) ?? candidates[0];
@@ -78,6 +94,10 @@ export function startGame(app: HTMLElement): void {
     const command = button.dataset.action;
     if (command === "close-panel") { closePanel(); return; }
     if (command === "help" || command === "reset" || command === "restore") {
+      if (command === "restore") {
+        previewRestore(store.backup());
+        app.querySelector<HTMLElement>("#restore-change-note")!.hidden = true;
+      }
       dialogs.open(command, button); return;
     }
     if (command === "reset-confirm") {
@@ -87,6 +107,11 @@ export function startGame(app: HTMLElement): void {
     }
     if (command === "restore-confirm") {
       const backup = store.backup();
+      if (backup && JSON.stringify(backup) !== JSON.stringify(offeredBackup)) {
+        previewRestore(backup);
+        const notice = app.querySelector<HTMLElement>("#restore-change-note")!;
+        notice.hidden = false; reveal(notice); return;
+      }
       dialogs.close("restore");
       if (backup && store.replace(backup)) {
         state = backup; selected = state.position; outcome = null; panel = state.pendingEvent ? "encounter" : state.status !== "active" ? "ending" : null;
@@ -129,6 +154,7 @@ export function startGame(app: HTMLElement): void {
     const wasReady = store.mode === "ready";
     store.save(state);
     draw();
+    game.querySelector<HTMLElement>("#action-feedback")!.textContent = actionFeedback(state, action);
     if (wasReady && store.mode !== "ready") game.querySelector<HTMLDetailsElement>(".recovery details")!.open = true;
     if (newEvent) reveal(game.querySelector("#event-title"));
     else if (outcome) reveal(game.querySelector("#outcome-title"));

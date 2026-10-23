@@ -210,3 +210,40 @@ it("warns when even the minimum travel exceeds the remaining time", () => {
   state.turn = 44;
   expect(html(state, 7)).not.toContain("移動だけでも残り時間を超えます");
 });
+
+it.each(["water", "food", "bandage", "snack", "electrolyte", "medkit", "coffee"] as const)(
+  "warns before spending %s for no recovery without blocking the action", item => {
+    const state = newGame(); Object.assign(state, { health: 100, hunger: 100, thirst: 100, energy: 100 });
+    state.inventory[item] = 1;
+    const before = structuredClone(state);
+    expect(summary(html(state), `guide-use-${item}`)).toContain("今は回復・治療の効果がありません");
+    expect(assessAction(state, { type: "use", item }).allowed).toBe(true);
+    expect(state).toEqual(before);
+  });
+
+it("warns for a full recovery rest but respects useful recovery and treatment", () => {
+  const state = newGame(); Object.assign(state, { health: 100, hunger: 100, thirst: 100, energy: 100 });
+  expect(summary(html(state), "guide-rest")).toContain("recovery-warning");
+  state.wound = "minor";
+  expect(summary(html(state), "guide-rest")).not.toContain("recovery-warning");
+  expect(summary(html(state), "guide-use-bandage")).not.toContain("recovery-warning");
+  state.wound = "none"; state.health = 99;
+  expect(summary(html(state), "guide-rest")).not.toContain("recovery-warning");
+  state.thirst = 99;
+  expect(summary(html(state), "guide-use-water")).not.toContain("recovery-warning");
+});
+
+it("does not add recovery warnings to unavailable actions", () => {
+  const state = newGame(); state.thirst = 100; state.inventory.water = 0;
+  expect(summary(html(state), "guide-use-water")).not.toContain("recovery-warning");
+});
+
+it("offers labelled recovery shortcuts beside each drawer resource without acting", () => {
+  const state = newGame(); const before = structuredClone(state);
+  const markup = html(state);
+  for (const key of Object.keys(STAT_NAMES) as Stat[]) {
+    expect(markup).toContain(`data-recovery-stat="${key}" data-panel="${key === "energy" ? "location" : "inventory"}"`);
+    expect(markup).toContain(`aria-label="メニュー内の${STAT_NAMES[key]} ${state[key]}：`);
+  }
+  expect(state).toEqual(before);
+});

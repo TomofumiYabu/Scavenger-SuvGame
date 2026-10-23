@@ -19,6 +19,18 @@
   box-sizing: border-box;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -816,12 +828,19 @@ button:hover:not(:disabled) {
   font-size: 11px;
 }
 
-.drawer-resources > span {
+.drawer-stat {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
   gap: 4px;
   white-space: nowrap;
+  min-height: 24px;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-size: inherit;
+  line-height: 1.2;
 }
 
 .drawer-context { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 11px; }
@@ -1572,6 +1591,16 @@ dialog .muted {
   margin-top: 22px;
 }
 
+.restore-state {
+  border-top: 1px solid #ad986855;
+  margin-top: 16px;
+  padding-top: 12px;
+  overflow-wrap: anywhere;
+}
+
+.restore-state h3 { margin: 0 0 6px; font-size: 15px; color: var(--gold); }
+.restore-state p { margin: 4px 0; }
+
 dialog>form .button {
   margin-top: 18px;
 }
@@ -2123,6 +2152,7 @@ dialog>form .button {
 /* Share a row on short, wide screens so warnings leave room for actions. */
 @media(min-width:561px) and (max-height:450px) {
   .drawer-header { padding: 7px 12px; }
+  .drawer-resources { padding-top: 4px; padding-bottom: 4px; }
   .drawer-resources:has(.drawer-event-link:not([hidden])) .drawer-context {
     grid-column: 1 / 3;
     align-self: center;
