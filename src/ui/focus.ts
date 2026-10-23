@@ -66,8 +66,8 @@ export function connectDialogs(app: HTMLElement): { open: (name: string, invoker
       const snapshot = captureFocus(invoker);
       sessions.set(dialog, { snapshot, restore: true });
       dialog.showModal();
-      if (name === "help") {
-        dialog.querySelector<HTMLElement>("#help-title")!.focus({ preventScroll: true });
+      if (name === "help" || name === "restore") {
+        dialog.querySelector<HTMLElement>(`#${name}-title`)!.focus({ preventScroll: true });
         dialog.scrollTop = 0;
       }
     },
